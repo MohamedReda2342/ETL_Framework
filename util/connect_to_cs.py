@@ -3,98 +3,93 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 from teradataml import *
+from util import Queries
 
 # Load the .env file
 load_dotenv()
 
-# Get environment variables
+# Function to get connection parameters from environment variables
+def get_connection_params():
+    return {
+        "user": os.getenv("TD_DB_USER"),
+        "password": os.getenv("TD_DB_PASSWORD"),
+        "host": os.getenv("TD_DB_HOST")
+    }
 
-def create_table(script):
-    print(script)
+# Function to establish a connection to Teradata
+def get_connection():
+    params = get_connection_params()
+    return teradatasql.connect(
+        host=params["host"], 
+        user=params["user"], 
+        password=params["password"]
+    )
+
+# Function to execute a query and return results as a DataFrame
+def execute_query(query):
+    try:
+        with get_connection() as connect:
+            result_df = pd.read_sql(query, connect)
+            print(f"Query executed successfully: {query}")
+            return result_df
+    except Exception as e:
+        print(f"Error executing query: {str(e)}")
+        raise e
 
 def establish_TD_connection():
-    user_name = os.getenv("TD_DB_USER")
-    password = os.getenv("TD_DB_PASSWORD")
-    host = os.getenv("TD_DB_HOST")
-    #db_name = os.getenv("DB_NAME")user_name
-    query = 'select top 5 * from jaffle_shop.raw_customers'
-    query = 'SELECT DISTINCT DatabaseName FROM DBC.TablesV'
+    query = Queries.get_distinct_databases()
     print(query)
-    with teradatasql.connect(host=host, user=user_name, password=password) as connect:
-        data = pd.read_sql(query, connect)
+    try:
+        data = execute_query(query)
         print(data)
-    return data, query
+        return data, query
+    except Exception as e:
+        print(f"Error in establish_TD_connection: {str(e)}")
+        raise e
 
-def list_objects(database_name='ETLTEST'):
-    #'jaffle_shop'
-    user_name = os.getenv("TD_DB_USER")
-    password = os.getenv("TD_DB_PASSWORD")
-    host = os.getenv("TD_DB_HOST")
-    query = 'SELECT TOP 5 TableName, DatabaseName FROM DBC.TablesV ORDER BY TableName;'
-
-   
-    query = """SELECT DatabaseName , TableName, CreateTimeStamp, LastAlterTimeStamp FROM  DBC.TablesV WHERE   DatabaseName = """ 
-    #+ 'jaffle_shop'
-    # f"'{A}'  '{B}'"
-    query = f"{query} '{database_name}'"
-    print(query)
-    with teradatasql.connect(host=host, user=user_name, password=password) as connect:
-        tables = pd.read_sql(query, connect)
+def list_objects(database_name='TDStats'):
+    query = Queries.list_objects_by_database(database_name=database_name)
+    try:
+        tables = execute_query(query)
         print(tables)
-
-    #create_context(host = host, username=user_name, password=password)
-
-    #data=db_list_tables(None, 'DBC', 'table')
-    return tables, query
+        return tables, query
+    except Exception as e:
+        print(f"Error in list_objects: {str(e)}")
+        raise e
 
 def create_core_tables(sql_script):
-    print('connect to clear scTD_DB_PASSWORDape : in create core tables =======================')
-    print(sql_script)
-    user_name = os.getenv("TD_DB_USER")
-    password = os.getenv("")
-    host = os.getenv("TD_DB_HOST")
-
-    query = sql_script
-    
     for query in sql_script:
-        print(query)
-        print('query type ===========================================')
-        print(type(query))
         try:
-            with teradatasql.connect(host=host, user=user_name, password=password) as connect:
-                response = pd.read_sql(query, connect)
-                print(response)
-                return response
+            response = execute_query(query)
+            return response
         except teradatasql.DatabaseError as db_err:
-        # Handle any errors that occur during the database connection
-            print("Error while connecting to the Teradata database:", db_err)
             return db_err
 
-
-
 def create_core(sql_script):
-    user_name = os.getenv("TD_DB_USER")
-    password = os.getenv("TD_DB_PASSWORD")
-    host = os.getenv("TD_DB_HOST")
+    params = get_connection_params()
+    db_user_for_table = params["user"]
+    
+    create_table_query = Queries.create_sample_employee_table(user=db_user_for_table)
+
     try:
-    # Establish a connection to the Teradata database
-        with teradatasql.connect(host=host, user=user_name, password=password) as con:
-        # Create a cursor to execute queries
+        with get_connection() as con:
             with con.cursor() as cur:
                 try:
-                    # Creating the table SampleEmployee
-                    cur.execute (f"CREATE SET TABLE {USER}.SampleEmployee \
-                            (Associate_Id     INTEGER, \
-                            Associate_Name   CHAR(25), \
-                            Job_Title        VARCHAR(25)) \
-                            UNIQUE PRIMARY INDEX (Associate_Id);")
-                
-                    print(f"Sample table {user_name}.SampleEmployee created.")
-
+                    cur.execute(create_table_query)
+                    print(f"Sample table {db_user_for_table}.SampleEmployee created.")
                 except teradatasql.DatabaseError as db_err:
-                # Handle any errors that occur during query execution
                     print("Error while executing the query:", db_err)
-
     except teradatasql.DatabaseError as db_err:
-    # Handle any errors that occur during the database connection
         print("Error while connecting to the Teradata database:", db_err)
+
+def execute_custom_query(query_string):
+    try:
+        result_df = execute_query(query_string)
+        return result_df, query_string
+    except Exception as e:
+        print(f"Error executing custom query: {str(e)}")
+        raise e
+
+# For backward compatibility
+def create_table(script):
+    print(script)
