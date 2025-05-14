@@ -1,0 +1,15 @@
+# Core Packages
+pandas>=2.0.0
+openpyxl>=3.1.0
+streamlit>=1.22.0
+
+# Database Connectors
+teradatasql>=17.0.0
+teradataml>=17.0.0
+pymongo>=4.3.0
+python-dotenv>=0.21.0
+
+# Utilities
+urllib3>=1.26.0
+plotly==5.18.0
+
