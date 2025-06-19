@@ -1,0 +1,55 @@
+class CurrentEnv:
+  def __init__(self, env, bi_flag):
+    self.env = env #'DEV' # 'TST' 'PROD'
+    
+    self.Debug_Level=0o6
+    self.oReturn_Code=0o01
+    self.oReturn_Message=0o02
+    self.OMessage= ":Omessage"
+    self.Collect_Stats=0
+    self.Verification_Flag=0
+
+    self.BIGINT_Flag = "\""+str(bi_flag)+"\"" 
+
+  #GDEV1T_GCFR	GCFR Standard Tables
+  #GDEV1V_GCFR	GCFR Standard Views
+
+    self.Key_Table_DB_Name = 'G'+env+'1T_GCFR'
+    #self.Key_View_DB_Name = " \" G"+env+"1V_GCFR\""
+    #self.Key_View_DB_Name = "G"+env+"1V_GCFR"
+    self.Key_View_DB_Name =  '"' + 'G'+ env + '1V_GCFR' +'"'
+
+    #self.GCFR_Standard_Macros = 'G'+env+'1M_GCFR'
+    self.GCFR_Standard_Utility_Stored_Procedure ='G'+env+'1P_UT'
+    self.GCFR_Standard_Processing_Pattern_Stored_Procedure =  "G"+env+"1_PP"
+    
+    self.Staging_Tables = "G"+env+"T_STG"
+    self.Staging_Tables_Views = "G"+env+"1V_STG"
+    self.Source_Tables_With_Bkey_Bmap = "G"+env+"1T_SRCI"
+    self.SRCI_Table_Views = "G"+env+"1V_SRCI"
+    self.Target_Tables = "G"+env+"1T_CORE"
+    self.Target_Tables_Views = "G"+env+"1V_CORE"
+    self.GCFR_Standard_Macros = "G"+env+"1M_GCFR"
+    self.GCFR_API_Procedures = "G"+env+"1P_API"
+    self.GCFR_Building_Blocks_Procedures = "G"+env+"1P_BB"
+    self.GCFR_Control_Patterns_Procedures = "G"+env+"1P_CP"
+    self.GCFR_Functional_Flow_Procedures = "G"+env+"1_FF"
+    self.GCFR_Processing_Patterns_Procedures = "G"+env+"1_PP"
+    self.GCFR_Utilities_Procedures = "G"+env+"1_UT"
+    self.GCFR_Tables = "G"+env+"1T_GCFR"
+    self.GCFR_Views = "G"+env+"1V_GCFR"
+    self.GCFR_standard_database_to_hold_macros = "G"+env+"1M_OPR"
+    self.GCFR_standard_database_to_hold_any_tables = "G"+env+"1T_OPR"
+    self.GCFR_standard_database_to_hold_operational_views = "G"+env+"1V_OPR"
+    self.Access_Layer_Tables = "G"+env+"1T_SEM"
+    self.Access_Layer_Views = "G"+env+"1V_SEM"
+    self.Temporary_Tables = "G"+env+"1T_TMP"
+    self.Work_Tables = "G"+env+"1T_WRK"
+    self.Transform_Input_Views = "G"+env+"1V_INP"
+    self.Transform_Output_Views = "G"+env+"1V_OUT"
+    # Ker view db name 
+    self.UTL_Tables = "G"+env+"1T_UTLFW"
+    self.Key_View_DB_Name = "G"+env+"1V_UTLFW"
+
+  
+  
