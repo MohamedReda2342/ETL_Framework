@@ -1,3 +1,0 @@
-EXEC GTST1M_GCFR.GCFR_Register_Bkey_Domain(1, 2, "EMP")
-EXEC GTST1M_GCFR.GCFR_Register_Bkey_Domain(1, 1, "CIF")
-

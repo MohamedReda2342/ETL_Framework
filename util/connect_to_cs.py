@@ -80,7 +80,7 @@ def execute_query(query):
         raise e
 
 def establish_TD_connection():
-    query = Queries.get_distinct_databases()
+    query = "SELECT DISTINCT DatabaseName FROM DBC.TablesV"
     print(query)
     try:
         data = execute_query(query)
@@ -112,7 +112,11 @@ def create_core(sql_script):
     params = get_connection_params()
     db_user_for_table = params["user"]
     
-    create_table_query = Queries.create_sample_employee_table(user=db_user_for_table)
+    create_table_query = f"CREATE SET TABLE {db_user_for_table}.SampleEmployee " \
+        "(Associate_Id     INTEGER, " \
+        "Associate_Name   CHAR(25), " \
+        "Job_Title        VARCHAR(25)) " \
+        "UNIQUE PRIMARY INDEX (Associate_Id);"
 
     try:
         with get_connection() as con:

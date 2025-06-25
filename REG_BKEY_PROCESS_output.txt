@@ -1,3 +1,0 @@
-EXEC GTST1M_GCFR.GCFR_Register_Process(BK_PRTY_CIF_STG_CB_CUSTOMER_SK_CIF_ID, "21", CB, 2.0, "gtst1t_utlfw", BKEY_PRTY, "gtst1t_tmp", "0", "0", "0", "0", "0", "0", "0", "0", "0")
-EXEC GTST1M_GCFR.GCFR_Register_Process(BK_PRTY_EMP_table name stg_column name source, "21", source system alias, stream key, "gtst1t_utlfw", BKEY_PRTY, "gtst1t_tmp", "0", "0", "0", "0", "0", "0", "0", "0", "0")
-

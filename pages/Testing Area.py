@@ -41,7 +41,7 @@ if 'editor_content' not in st.session_state:
     st.session_state.editor_content = ""
 
 # def list_objects(database_name='TDStats'):
-#     query = Queries.list_objects_by_database(database_name=database_name)
+#     query = f"SELECT DatabaseName, TableName, CreateTimeStamp, LastAlterTimeStamp FROM DBC.TablesV WHERE DatabaseName = '{database_name}'"
 #     try:
 #         tables = execute_query(query)
 #         print(tables)
