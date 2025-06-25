@@ -1,59 +1,52 @@
+import pandas as pd
+import streamlit as st
+import io  
 
-import pandas as pd 
+def load_excel_file(file_content):
+    return pd.read_excel(io.BytesIO(file_content))
+def load_sheet(file_content, sheet_name):
+    return pd.read_excel(io.BytesIO(file_content), sheet_name)
 
-def initalize_test_df():
-    cols = ['Subject Area','Table Name','Column Name','Data Type','Mandatory',	'PK','Historization Key','Version']
-
-    df = pd.DataFrame(columns=cols)
-    print(df.columns)
-
-    df[df.columns[0]] = ['PARTY', 'PARTY', 'PARTY']
-    df[df.columns[1]] = ['PARTY', 'PARTY', 'PARTY']
-    df[df.columns[2]] = ['PARTY_ID', 'PARTY_DESC', 'PARTY_NUM'] 
-    df[df.columns[3]] = ['INTEGER', 'VARCHAR(250)', 'VARCHAR(100)']
-
-    df[df.columns[4]] = ['Y', '', '']
-    df[df.columns[5]] = ['Y', '', '']
-    df[df.columns[6]] = ['', '', '']
-    df[df.columns[7]] = ['0.1', '0.1', '0.1']
-
-    print(df)
-    return df
-
-
+def get_excel_sheet_names(file_content):
+    return pd.ExcelFile(io.BytesIO(file_content)).sheet_names
 
 
 def df_groupBy(df, col) :
-    print('------------------------ GROUP BY')
-    print('BUT first lets check the passed Dataframe ')
-    print(df)
-    print(f' group by the df {df.columns}')
-    print(f' by the column {col}')
-    #d = (df.groupby(['Table Name'])[['a','d']]
-    '''
-    d = (df.groupby([col])[df.columns]
-       .apply(lambda x: x.to_dict('records'))
-       .reset_index(name='attr')
-       .to_dict('records'))
-    '''
     d = (df.groupby([col])[df.columns]
        .apply(lambda x: x.to_dict('records'))
        .reset_index(name='attr'))
-    print (d)
     df_returned  =pd.DataFrame(d)
-    #df_returned['attr'] = df_returned['attr'].apply(lambda x: str(x))
-    print(df_returned.columns)
-    print(df_returned)
     return df_returned
-    
 
-df=initalize_test_df()
-col = 'Table Name'
-d=df_groupBy(df, col)
-print('=========================')
-print(type(d))
-print(d)
-print(d.shape)
-print(d.columns)
-#d['attr']=d['attr'].to_string()
-print(d.columns)
+def filter_by_column_value(df, column_name, values_to_filter):
+    if column_name not in df.columns:
+        return df
+
+    if values_to_filter is None or (isinstance(values_to_filter, list) and not values_to_filter):
+        return df
+
+    # Ensure values_to_filter is a list for consistent processing
+    if not isinstance(values_to_filter, list):
+        values_list = [values_to_filter]
+    else:
+        values_list = values_to_filter
+
+    return df[df[column_name].isin(values_list)]
+            
+# Get unique values from a dataframe column, removing NaN values.
+def get_unique_values(df, column_name):
+    if column_name in df.columns:
+        return df[column_name].dropna().unique().tolist()
+    return []
+
+
+
+# Clean system data by removing rows with empty aliases and invalid values.
+def clean_system_data(system_df, alias_column='Source System Alias'):
+    if alias_column in system_df.columns:
+        # Remove rows with empty aliases
+        cleaned_df = system_df.dropna(subset=[alias_column])
+        # Remove rows with whitespace-only aliases
+        return cleaned_df[cleaned_df[alias_column].str.strip().astype(bool)]
+    return system_df
+

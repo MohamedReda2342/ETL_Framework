@@ -95,8 +95,6 @@ def process_stream_tab(sheet_content):
     # next line will be removed when working with the actual sheet 
     new_sheet_content =  pd.DataFrame(sheet_content[:4])
 
-    
-
     generated_script = []
     for indices, row in new_sheet_content.iterrows():
         print(type(row))

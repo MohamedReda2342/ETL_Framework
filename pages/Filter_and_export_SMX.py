@@ -1,369 +1,236 @@
 import streamlit as st
 import pandas as pd
-import openpyxl
 import io
+import os # Added import
+from generating_scripts import load_script_model, main
+from util import df_utlis
+from util import tab_operations
+from util import Queries
+from datetime import datetime
+from util.auth import check_authentication
 
-# Initialize session state for file storage
-if 'data_file_content' not in st.session_state:
-    st.session_state.data_file_content = None
-if 'system_data' not in st.session_state:
-    st.session_state.system_data = None
-if 'sheet_names' not in st.session_state:
-    st.session_state.sheet_names = None
+# Authentication check - must be first command
+authenticator = check_authentication()
 
-# Cache the Excel file reading with TTL set to None (never expire)
-@st.cache_data(ttl=None)
-def load_excel_sheet(file_content, sheet_name):
-    return pd.read_excel(io.BytesIO(file_content), sheet_name)
 
-@st.cache_data(ttl=None)
-def get_excel_sheet_names(file_content):
-    return pd.ExcelFile(io.BytesIO(file_content)).sheet_names
-
-# File uploader
-uploaded_file = st.file_uploader("Upload Excel file", type=['xlsx'])
-
-# Store the file in session state when uploaded
+# Move file uploader to sidebar
+with st.sidebar:
+    # Upload file and store in session state
+    uploaded_file = st.file_uploader("Upload the SMX file", type=['xlsx'])
+    if uploaded_file is not None:
+        st.session_state['uploaded_file'] = uploaded_file
+    elif 'uploaded_file' in st.session_state:
+        uploaded_file = st.session_state['uploaded_file']
+    
+    authenticator.logout('Logout', 'sidebar')
+    
+# Process the file when uploaded
 if uploaded_file is not None:
-    # Read the file content once
     file_content = uploaded_file.getvalue()
-    st.session_state.data_file_content = file_content
-    
-    # Get sheet names
-    if st.session_state.sheet_names is None:
-        st.session_state.sheet_names = get_excel_sheet_names(file_content)
-    
-    # Load system data once
-    if st.session_state.system_data is None and "System" in st.session_state.sheet_names:
-        system_df = load_excel_sheet(file_content, "System")
-        # Clean data - remove rows with empty Source System Alias and invalid rows
-        st.session_state.system_data = system_df.dropna(subset=['Source System Alias'])
-        st.session_state.system_data = st.session_state.system_data[
-            st.session_state.system_data['Source System Alias'].str.strip().astype(bool)
-        ]
+    sheet_names = df_utlis.get_excel_sheet_names(file_content)
+    excel_file_name = uploaded_file.name.split('.')[0] # Get Excel file name without extension
 
-# Use the cached file from session state
-if st.session_state.data_file_content is not None:
-    file_content = st.session_state.data_file_content
-    
-    # System selection
-    selected_system = None
-    if st.session_state.system_data is not None and not st.session_state.system_data.empty:
-        system_aliases = tuple(st.session_state.system_data['Source System Alias'].unique())
-        selected_system = st.selectbox(
-            "Select Source System", 
-            system_aliases, 
-            index=None,
-            placeholder="Choose a system..."
+    col1, col2 ,col3= st.columns(3)
+    with col1:
+        selected_environment = st.selectbox(
+            "Select Environment :",
+            options=["TST", "DEV", "PROD"],
+            index=0,
+            key="select_environment",
         )
-# ----------------------------------------------------------------------------------------------------------------------------------
-        # STG tables  Section
-        try:
-            # Cache the STG tables data
-            stg_df = load_excel_sheet(file_content, "STG tables")
-            stg_filtered = stg_df[stg_df['Source System Alias'] == selected_system] if selected_system else stg_df
+    with col2:
+        selected_tab = st.selectbox(
+            "Select key area :",
+            options=sheet_names,
+            index=0,
+            key="tab_selector",
+        )
+    tab_name = selected_tab
             
-            st.subheader("STG tables")
-            
-            # Get unique table names and allow selection
-            tables_available = stg_filtered['Table Name Source'].dropna().unique().tolist()
-            
-            if tables_available:
-                selected_tables = st.multiselect(
-                    "Select tables to display from (Table Name Source Tab):",
-                    options=tables_available,
-                    default=None  # Start with none selected
-                )
-                
-                # Only show selected tables
-                if selected_tables:
-                    filtered_data = stg_filtered[stg_filtered['Table Name Source'].isin(selected_tables)]
-                    # Group by table and display
-                    for table_name, group in filtered_data.groupby('Table Name Source'):
-                        # Hide the column we grouped by
-                        display_group = group.drop(columns=['Table Name Source'])
-                        
-                        st.write(f"**Table: {table_name}**")
-                        st.write(f"Full Table Name: {display_group['Table Name STG'].iloc[0]}")
-                        
-                        # Add buttons side by side using columns
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("Generate Query", key=f"gen_query_stg_{table_name}")
-                        with col2:
-                            st.button("Execute Query", key=f"exec_query_stg_{table_name}")
-                            
-                        st.dataframe(display_group.reset_index(drop=True))
-                else:
-                    st.write("Select tables from the dropdown above to view details")
-            else:
-                st.write("No STG tables found for selected system")
-                
-        except Exception as e:
-            st.error(f"Error loading STG tables: {str(e)}")
-# ----------------------------------------------------------------------------------------------------------------------------------
-        # BKEY Data  Section
-        try:
-            sheet_names = get_excel_sheet_names(file_content)
-            if "BKEY" in sheet_names:
-                bkey_df = load_excel_sheet(file_content, "BKEY")
-                
-                st.subheader("BKEY Table")
-                
-                # Show description to help users understand the relationship
-                st.info("The BMAP data shown here will be filtered based on your table selection 👆  \n"
-                                "using both (Key Set Name && Key Domain Name)")                
-                # Filter based on selected STG tables if any are selected
-                if selected_tables and not bkey_df.empty:
-                    # Get key_set_name and key_domain_name pairs from selected STG tables
-                    selected_stg_data = stg_filtered[stg_filtered['Table Name Source'].isin(selected_tables)]
-                    
-                    # Get unique pairs from STG data
-                    key_pairs = set(zip(selected_stg_data['Key Set Name'].dropna(), 
-                                        selected_stg_data['Key Domain Name'].dropna()))
+    # Action / Query
+    with col3:
+        selected_action = st.selectbox(
+            f"Select Key type:",
+            options=tab_operations.get_action_options(tab_name),
+            key="action" 
+        )
+        
+    col1, col2 , col3 = st.columns(3)    
+    # Key Set Name
+    with col1:
+        Frequency = st.selectbox(
+            "Select Frequency",
+            options =["Daily", "weekly" , "Monthly"],
+            key="Frequency" 
+        )
+       
+    # Data Type (INT or BIG INT)
+    with col2:
+        data_type = st.selectbox(
+            "Select INT Type:",
+            options =["int", "BIG int"],
+            key="data_type",
+            disabled=(tab_name != "BKEY")  # Disable when BKEY tab is selected
+        )
 
-                    # Filter BKEY data based on these pairs
-                    bkey_filtered = bkey_df[bkey_df[['Key Set Name', 'Key Domain Name']].apply(tuple, axis=1).isin(key_pairs)]
-                    
-                    if not bkey_filtered.empty:
-                        # Add buttons side by side using columns
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("Generate Query", key="gen_query_bkey")
-                        with col2:
-                            st.button("Execute Query", key="exec_query_bkey")
-                            
-                        st.dataframe(bkey_filtered.dropna(how='all'))
-                    else:
-                        st.write("No BKEY mappings found for the selected tables.")
-                else:
-                    # Show empty placeholder or sample structure
-                    if not bkey_df.empty:
-                        # Add buttons side by side using columns
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("Generate Query", key="gen_query_bkey_empty")
-                        with col2:
-                            st.button("Execute Query", key="exec_query_bkey_empty")
-                            
-                        # Display empty dataframe with column headers to show structure
-                        st.dataframe(bkey_df.head(0))
-        except Exception as e:
-            st.error(f"Error loading BKEY data: {str(e)}")
-# ----------------------------------------------------------------------------------------------------------------------------------
-        # BMAP Data  Section
-        #  after table selection: Capture composite keys from selected STG tables
-        selected_composite_keys = set()
-        if selected_tables:
-            # Get selected STG data
-            selected_stg_data = stg_filtered[stg_filtered['Table Name Source'].isin(selected_tables)]
-            # Extract valid composite keys
-            selected_composite_keys = set(
-                selected_stg_data[['Code Set Name', 'Code Domain Name']]
-                .dropna()
-                .apply(tuple, axis=1)
-            )
-        elif not selected_system:  # When no system selected but showing all STG tables
-            # Get all composite keys from all STG tables
-            selected_composite_keys = set(
-                stg_df[['Code Set Name', 'Code Domain Name']]
-                .dropna()
-                .apply(tuple, axis=1)
-            )
+    with col3:
+        key_set_names ,bkey_sheet =tab_operations.get_key_set_options(file_content , selected_tables=[])
+        selected_key_set = st.selectbox( 
+        "Select Key Set Name:", 
+        options = key_set_names,
+        key="key_set_name",
+        disabled=(tab_name != "BKEY")  # Disable when BKEY tab is selected
+    )
+    filtered_key_set_names_DF = df_utlis.filter_by_column_value(bkey_sheet, 'Key Set Name', selected_key_set)
+    # Filtered STG tables By Key Set Name
+    tables_names , STG_tables_df = tab_operations.get_stg_table_options(file_content, selected_key_set)
+    # key domain name Column in ( STG Tables ) which is filtered already by key set name 
+    key_domain_names = df_utlis.get_unique_values(STG_tables_df, 'Key Domain Name')
 
-        try:
-            if "BMAP" in sheet_names:
-                bmap_df = load_excel_sheet(file_content, "BMAP")
-                
-                st.subheader("BMAP Mapping")
-                # Show description to help users understand the relationship
-                st.info("The BMAP data shown here will be filtered based on your table selection 👆  \n"
-                                "using both (Code Set Name && Code Domain Name)")                  
-                # Filter BMAP based on composite keys if any exist
-                if selected_tables and not bmap_df.empty:
-                    # Get selected STG data
-                    selected_stg_data = stg_filtered[stg_filtered['Table Name Source'].isin(selected_tables)]
-                    
-                    # Get unique pairs from STG data
-                    code_pairs = set(zip(selected_stg_data['Code Set Name'].dropna(), 
-                                         selected_stg_data['Code Domain Name'].dropna()))
-                    
-                    # Filter BMAP data based on these pairs
-                    bmap_filtered = bmap_df[bmap_df[['Code Set Name', 'Code Domain Name']].apply(tuple, axis=1).isin(code_pairs)]
-                    
-                    if not bmap_filtered.empty:
-                        # Add buttons side by side using columns
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("Generate Query", key="gen_query_bmap")
-                        with col2:
-                            st.button("Execute Query", key="exec_query_bmap")
-                            
-                        st.dataframe(bmap_filtered.dropna(how='all'))
-                    else:
-                        st.write("No BMAP mappings found for the selected tables.")
-                else:
-                    # Show empty placeholder or sample structure
-                    if not bmap_df.empty:
-                        # Add buttons side by side using columns
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("Generate Query", key="gen_query_bmap_empty")
-                        with col2:
-                            st.button("Execute Query", key="exec_query_bmap_empty")
-                            
-                        # Display empty dataframe with column headers to show structure
-                        st.dataframe(bmap_df.head(0))
-        except Exception as e:
-            st.error(f"Error loading BMAP data: {str(e)}")
-# ----------------------------------------------------------------------------------------------------------------------------------
-        # BMAP Values Section
-        try:
-            if "BMAP values" in sheet_names:
-                bmapv_df = load_excel_sheet(file_content, "BMAP values")
-                
-                st.subheader("BMAP values")
-                # Show description to help users understand the relationship
-                st.info("The BMAP Values data shown here will be filtered based on the BMAP table above.👆  \n"
-                                "using both (Code Set Name && Code domain ID)")  
-                
-                # Filter based on BMAP table
-                if 'bmap_filtered' in locals() and not bmap_filtered.empty:
-                    # Create composite keys from filtered BMAP
-                    bmap_composite = set(zip(bmap_filtered['Code domain ID'], bmap_filtered['Code Set Name']))
-                    
-                    # Create composite keys in BMAP Values
-                    bmapv_df['Composite_Key'] = list(zip(bmapv_df['Code domain ID'], 
-                                                        bmapv_df['Code Set Name']))
+    multi_col1, multi_col2 = st.columns(2)
 
-                    # Filter BMAP Values based on composite keys
-                    bmapv_filtered = bmapv_df[bmapv_df['Composite_Key'].isin(bmap_composite)].drop(columns=['Composite_Key'])
-                    
-                    if not bmapv_filtered.empty:
-                        # Add buttons side by side using columns
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("Generate Query", key="gen_query_bmapv")
-                        with col2:
-                            st.button("Execute Query", key="exec_query_bmapv")
-                            
-                        st.dataframe(bmapv_filtered.dropna(how='all'))
-                    else:
-                        st.write("No BMAP Values found for the selected BMAP entries.")
-                else:
-                    # Show empty placeholder or sample structure
-                    if not bmapv_df.empty:
-                        # Add buttons side by side using columns
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.button("Generate Query", key="gen_query_bmapv_empty")
-                        with col2:
-                            st.button("Execute Query", key="exec_query_bmapv_empty")
-                            
-                        # Display empty dataframe with column headers to show structure
-                        st.dataframe(bmapv_df.head(0))
-                    st.write("Select tables above to view related BMAP entries and their values.")
-        except Exception as e:
-            st.error(f"Error loading BMAP Values: {str(e)}")
-# ----------------------------------------------------------------------------------------------------------------------------------
-        # CORE Tables
-        try:
-            if "CORE tables" in sheet_names:
-                core_df = load_excel_sheet(file_content, "CORE tables")
-                st.subheader("CORE Tables")
-                
-                # Add buttons side by side using columns
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.button("Generate Query", key="gen_query_core")
-                with col2:
-                    st.button("Execute Query", key="exec_query_core")
-                    
-                st.dataframe(core_df.dropna(how='all'))
-        except Exception as e:
-            st.error(f"Error loading CORE Tables: {str(e)}")
-# ----------------------------------------------------------------------------------------------------------------------------------
-
-    with st.expander("Show Full Dataset Preview"):
-        sheet_names = st.session_state.sheet_names
-        for sheet in sheet_names:
-            try:
-                df = load_excel_sheet(file_content, sheet)
-                st.subheader(f"{sheet} Sheet")
-                
-                # Add buttons side by side using columns
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.button("Generate Query", key=f"gen_query_preview_{sheet}")
-                with col2:
-                    st.button("Execute Query", key=f"exec_query_preview_{sheet}")
-                    
-                st.dataframe(df.head(5).dropna(how='all'))
-            except Exception as e:
-                st.error(f"Error loading {sheet} sheet: {str(e)}")
-
-    # Export functionality
-    st.subheader("Export Data")
-    st.write("Export the current filtered data to an Excel file with the same format as the input.")
+    # Key Domain Name 
+    with multi_col1:
+        selected_domains = st.multiselect(
+            "Select Key Domain :",
+            options=key_domain_names,
+            key="key_domain_name" 
+        )
+    # filtered bkey df based on key set name && key domain name
+    filtered_bkey_df = df_utlis.filter_by_column_value(filtered_key_set_names_DF, 'Key Domain Name', selected_domains)
+    # STG Tables 
+    with multi_col2:
+        selected_tables = st.multiselect(
+            "Select Table :",
+            options= tables_names,
+            key="stg_tables" 
+        )
+        filterd_STG_tables_df = df_utlis.filter_by_column_value(STG_tables_df, 'Table Name Source', selected_tables)
     
-    if st.button("Export to Excel"):
-        try:
-            # Create a new Excel writer
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                # Export System sheet
-                if 'system_data' in st.session_state and st.session_state.system_data is not None:
-                    st.session_state.system_data.to_excel(writer, sheet_name="System", index=False)
+
+
+#----------------------------------------   Process Selected Action  -------------------------------------------------------
+
+
+    if data_type == "int":
+        bigint_flag = "0"
+    elif data_type == "BIG int":
+        bigint_flag = "1"
+
+    key_set_id = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Set ID'].iloc[0]
+    Key_Domain_ID = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Domain ID'].iloc[0]
+
+    # if selected_action:
+    #     if tab_name == "System":
+    #         if selected_action == "register_system":
+    #             query_for_editor = Queries.register_system(Ctl_Id="",source_system_alias="",Path_Name="",source_system_name="")
+
+    #     elif tab_name == "Stream":
+    #         if selected_action == "register_stream":
+    #             query_for_editor = Queries.register_stream(Business_Date="",Cycle_Freq_Code="",stream_key="",stream_name="")
+        
+#---------------------------------------    Display query editor and execute query    ---------------------------------------
+    
+    # Workbook Should contain  Stream sheet
+    Dict = {
+        "BKEY" : filtered_bkey_df,
+        "STG tables" : filterd_STG_tables_df,
+        "Stream" : df_utlis.load_sheet(file_content, "Stream")
+    }
+
+    st.write(filterd_STG_tables_df)
+    print("------Main---------")
+    smx_model = {k.lower(): v for k, v in Dict.items()}
+
+    # Process each DataFrame: lowercase and remove spaces from column names
+    for key in smx_model:
+        smx_model[key].columns = [col.lower() for col in smx_model[key].columns]
+
+
+    # At the top of your script logic, after the button columns
+    gen_query_col, export_query_col, exec_query_col = st.columns(3) 
+
+    # Initialize session state if not exists
+    if "generated_query" not in st.session_state:
+        st.session_state["generated_query"] = ""
+    with gen_query_col:
+        if st.button(f"Generate Query", key=f"Generate_Query_Bttn"):
+            # Check if all required selections are made
+            if not (selected_domains and selected_tables and selected_action and selected_environment and selected_key_set and Frequency) :
+                st.error("Please complete selections")
+            else:
+                script = main(smx_model, selected_action, selected_environment, bigint_flag)
                 
-                # Export STG tables sheet (filtered if a system is selected)
-                if 'stg_df' in locals():
-                    if selected_tables and 'filtered_data' in locals():
-                        # Export only the selected tables data
-                        filtered_data.to_excel(writer, sheet_name="STG tables", index=False)
-                    elif selected_system:
-                        # Export system-filtered data
-                        stg_filtered.to_excel(writer, sheet_name="STG tables", index=False)
-                    else:
-                        # Export all STG data if no filtering
-                        stg_df.to_excel(writer, sheet_name="STG tables", index=False)
+                # Format the script output
+                if script and isinstance(script, list):
+                    flattened_queries = []
+                    for item in script:
+                        if isinstance(item, list):
+                            flattened_queries.extend(item)
+                        else:
+                            flattened_queries.append(item)
+                    query_for_editor = '\n'.join(flattened_queries)
+                else:
+                    query_for_editor = str(script) if script else ""
+                    
+                st.session_state["generated_query"] = query_for_editor
+                st.rerun()  # Refresh to show the updated content
+
+    # Display the query editor (outside the button condition)
+    current_query_in_editor = st.text_area(
+        "Query:",
+        value=st.session_state["generated_query"],
+        height=250,
+        key="query_editor_widget"
+    )
+
+    # Update the export and execute sections to use the widget value
+    with export_query_col:
+        if st.button(f"Export Query", key=f"Export_Query_Bttn"):
+            if not current_query_in_editor.strip():
+                st.error("No query to export. Please generate a query first.")
+            else:
+                query_to_export = current_query_in_editor  # Use the widget value
                 
-                # Export BKEY sheet (filtered if tables are selected)
-                if 'bkey_df' in locals():
-                    if 'bkey_filtered' in locals() and not bkey_filtered.empty and selected_tables:
-                        bkey_filtered.to_excel(writer, sheet_name="BKEY", index=False)
-                    else:
-                        bkey_df.to_excel(writer, sheet_name="BKEY", index=False)
+                # Create directory structure and save query
+                base_path = "Exported Queries"
+                env_folder_path = os.path.join(base_path, selected_environment)
+                excel_folder_path = os.path.join(env_folder_path, excel_file_name)
+                tab_folder_path = os.path.join(excel_folder_path, tab_name)
                 
-                # Export BMAP sheet (filtered if tables are selected)
-                if 'bmap_df' in locals():
-                    if 'bmap_filtered' in locals() and not bmap_filtered.empty and selected_tables:
-                        bmap_filtered.to_excel(writer, sheet_name="BMAP", index=False)
-                    else:
-                        bmap_df.to_excel(writer, sheet_name="BMAP", index=False)
+                # Get current date for folder name
+                current_date = datetime.now().strftime("%Y-%m-%d")
+                date_folder_path = os.path.join(tab_folder_path, current_date)
                 
-                # Export BMAP Values sheet (filtered if BMAP is filtered)
-                if 'bmapv_df' in locals():
-                    if 'bmapv_filtered' in locals() and not bmapv_filtered.empty:
-                        # Make sure to export without the temporary Composite_Key column
-                        if 'Composite_Key' in bmapv_filtered.columns:
-                            bmapv_filtered = bmapv_filtered.drop(columns=['Composite_Key'])
-                        bmapv_filtered.to_excel(writer, sheet_name="BMAP Values", index=False)
-                    else:
-                        bmapv_df.to_excel(writer, sheet_name="BMAP Values", index=False)
+                # Create action folder inside date folder
+                action_folder_path = os.path.join(date_folder_path, selected_action)
                 
-                # Export CORE tables sheet (always as is)
-                if 'core_df' in locals():
-                    core_df.to_excel(writer, sheet_name="CORE tables", index=False)
-            
-            # Provide download button for the Excel file
-            output.seek(0)
-            st.download_button(
-                label="Download Excel File",
-                data=output,
-                file_name="filtered_workbook.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-            
-            st.success("Excel file created successfully! Click the download button above to save it.")
-        except Exception as e:
-            st.error(f"Error creating Excel file: {str(e)}")
+                # Create directories if they don't exist
+                os.makedirs(action_folder_path, exist_ok=True)
+                
+                # Get full timestamp and username for file name
+                full_timestamp = datetime.now().strftime("%H%M%S")
+                file_name = f"{full_timestamp}__{st.session_state['username']}.sql"
+                query_file_path = os.path.join(action_folder_path, file_name)
+                
+                # Prepare query content
+                query_content = f"{query_to_export}"
+                
+                try:
+                    with open(query_file_path, "w") as f:
+                        f.write(query_content)
+                    st.success(f"Query exported to: {query_file_path}")
+                except Exception as e:
+                    st.error(f"Error exporting query: {e}")
+    
+    with exec_query_col:
+        if st.button(f"Execute Query", key=f"Execute_Query_Bttn"):
+            if not current_query_in_editor.strip():
+                st.error("No query to execute. Please generate a query first.")
+            else:
+                # Ensure current_query_in_editor reflects the latest from session_state before executing
+                query_to_execute = current_query_in_editor
+                st.success(f"Executed: {query_to_execute}")
+#------------------------------------------------------------------------------------------------------------------------------
+else:
+    st.info("Please upload an Excel file to begin.")

@@ -1,6 +1,7 @@
-"""
-Provides SQL queries used throughout the application.
-"""
+# from pages.Filter_and_export_SMX import key_set_names
+
+
+# environment = "GDEV1M_GCFR"
 
 def get_distinct_databases():
     """
@@ -17,11 +18,6 @@ def list_objects_by_database(database_name: str):
     return f"SELECT DatabaseName, TableName, CreateTimeStamp, LastAlterTimeStamp FROM DBC.TablesV WHERE DatabaseName = '{database_name}'"
 
 def create_sample_employee_table(user: str):
-    """
-    Query to create a sample employee table.
-    Args:
-        user (str): The user or schema name for the table.
-    """
     return (
         f"CREATE SET TABLE {user}.SampleEmployee "
         "(Associate_Id     INTEGER, "
@@ -30,27 +26,54 @@ def create_sample_employee_table(user: str):
         "UNIQUE PRIMARY INDEX (Associate_Id);"
     )
 
-def register_system(source_system_id, source_system_alias, source_system_name):
-    """
-    Query to register a system.
-    Example: EXEC GCFR_Register_System( '1','/','CB','Core Banking' );
-    Assumes string parameters will be quoted appropriately by the calling function or are passed pre-quoted if needed by concat_util.
-    For direct use, ensure string parameters are passed with quotes if the SQL syntax requires them.
-    The original code used a utility (cu.concat_4) which likely handled quoting.
-    If parameters are numeric, they usually don't need quotes.
-    """
-    # This version assumes parameters are passed ready for concatenation
-    # or that the calling code will handle quoting as per cu.concat_4's behavior.
-    # For simplicity, if direct string values are expected by SQL, they should be quoted.
-    # Example: EXEC GCFR_Register_System( 'id_val', '/', 'alias_val', 'name_val' );
-    return f"EXEC GCFR_Register_System( '{source_system_id}', '/', '{source_system_alias}', '{source_system_name}' );"
+# -------------------------------------------------------------  Actions   -------------------------------------------------------------- 
+# System Methods : 
+def register_system(Ctl_Id, source_system_alias, source_system_name, Path_Name='/'):
+    return f"{environment}.EXEC GCFR_Register_System({Ctl_Id},'{source_system_alias}',{Path_Name},'{source_system_name}');"
+#---------------------------------------------------------
+# Stream Methods :
+def register_stream(stream_key,Cycle_Freq_Code, stream_name, Business_Date):
+    return f"CALL {environment}.GCFR_UT_Register_Stream({stream_key},{Cycle_Freq_Code}'{stream_name}','{Business_Date}' );"
+#---------------------------------------------------------
+# # BKEY Methods :
+# def bkey_Process_registeration(key_set_name:int,STAGING_TABLE:str,COLUMN_NAME:str,Domain_Name:int):
+#     process_name = f"BK_{key_set_name}_{Domain_Name}_{STAGING_TABLE}_SK{COLUMN_NAME}"
+#     return f"""
+#     EXEC {environment}.GCFR_Register_Process({process_name},Description,Process_Type,Ctl_Id,Stream_Key, In_DB_Name, {process_name}, Out_DB_Name, Out_Object_Name, Target_TableDatabaseName, Target_TableName, Temp_DatabaseName, {key_set_id}, {Domain_Id}, {Code_Set_Id}, Collect_Stats,Truncate_Target,Verification_Flag,File_Qualifier_Reset_Flag);
+#     """
+    
+def bkey_views(key_set_name ,Domain_Name ,STAGING_TABLE,COLUMN_NAME , environment):
 
+    view_name="BK_"+key_set_name+"_"+Domain_Name+"_"+STAGING_TABLE+"_"+COLUMN_NAME
 
-def register_stream(system_id, stream_key, stream_name, date_str):
+    return f"""
+    REPLACE VIEW {environment}.{view_name} AS LOCK ROW FOR ACCESS 
+    SELECT TRIM({COLUMN_NAME}) AS SOURCE_KEY
+    FROM {environment}.{STAGING_TABLE}
+    WHERE {COLUMN_NAME} IS NOT NULL AND {COLUMN_NAME} <> ''
+    GROUP BY 1;
+
+    REPLACE VIEW {environment}.{view_name} AS LOCK ROW FOR ACCESS 
+    SELECT REGEXP_REPLACE({COLUMN_NAME}, '[^0-9]', '', 1, 0) AS SOURCE_KEY
+    FROM {environment}.{STAGING_TABLE}
+    WHERE {COLUMN_NAME} IS NOT NULL AND {COLUMN_NAME} <> ''
+    AND LENGTH(REGEXP_REPLACE({COLUMN_NAME}, '[^0-9]', '', 1, 0)) = 11
+    GROUP BY 1;
+
+    REPLACE VIEW {environment}.{view_name} AS LOCK ROW FOR ACCESS 
+    SELECT TRIM({COLUMN_NAME}) AS SOURCE_KEY
+    FROM {environment}.{STAGING_TABLE}
+    WHERE {COLUMN_NAME} IS NOT NULL AND {COLUMN_NAME} <> ''
+    GROUP BY 1;
+
+    REPLACE VIEW {environment}.{view_name} AS LOCK ROW FOR ACCESS 
+    SELECT REGEXP_REPLACE(MOBILE_NUMBER, '[^0-9]', '', 1, 0s) AS SOURCE_KEY
+    FROM {environment}.{STAGING_TABLE}
+    WHERE EMP_ID IS NOT NULL AND EMP_ID <> ''
+    AND LENGTH(REGEXP_REPLACE(MOBILE_NUMBER, '[^0-9]', '', 1, 0)) = 11
+    GROUP BY 1;
     """
-    Query to register a stream.
-    Example: CALL GCFR_UT_Register_Stream( 1,1,'CB_STG','2025-04-13' );
-    Assumes system_id and stream_key are numeric and stream_name, date_str are strings that need quoting.
-    The original code used a utility (cu.concat_2) for stream_name and date_str which likely handled quoting.
-    """
-    return f"CALL GCFR_UT_Register_Stream( {system_id},{stream_key},'{stream_name}','{date_str}' );"
+
+def bkey_call(Process_Name:str):
+        return f"CALL {environment}.GCFR_PP_BKEY({Process_Name},6,01,02)";
+#---------------------------------------------------------

@@ -1,0 +1,18 @@
+EXEC GTST1M_GCFR.GCFR_Register_Bkey_Key_Set(1, "PRTY", "BKEY_PRTY", "gtst1v_utlfw")
+
+CALL GTST1P_UT.GCFR_UT_BKEY_St_Key_CT("gtst1t_utlfw", "BKEY_PRTY", "1", ":omessage")
+
+CALL GTST1P_UT.GCFR_UT_BKEY_St_Key_CV("gtst1t_utlfw", "BKEY_PRTY", "gtst1v_utlfw", ":omessage")
+
+CALL GTST1P_UT.GCFR_UT_BKEY_Key_Set_RI_Check(1, ":omessage")
+
+CALL GTST1P_UT.GCFR_UT_BKEY_St_Key_NextId_CT("gtst1t_utlfw", "BKEY_PRTY", "1", ":omessage")
+
+CALL GTST1P_UT.GCFR_UT_BKEY_St_Key_NextId_CV("BKEY_PRTY", ":omessage")
+
+CALL GTST1P_UT.GCFR_UT_BKEY_S_K_NextId_Log_CT("BKEY_PRTY", "1", ":omessage")
+
+CALL GTST1P_UT.GCFR_UT_BKEY_S_K_NextId_Log_CV("BKEY_PRTY", ":omessage")
+
+CALL GTST1P_UT.GCFR_UT_BKEYStandKeyNextId_Gen("gtst1t_utlfw", "BKEY_PRTY", 1, ":omessage")
+

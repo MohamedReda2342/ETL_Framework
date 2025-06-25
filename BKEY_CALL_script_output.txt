@@ -1,0 +1,3 @@
+CALL GTST1_PP.GCFR_PP_BKEY(BK_PRTY_EMP_table name stg_column name source, "o6", "o1", "o2")
+CALL GTST1_PP.GCFR_PP_BKEY(BK_PRTY_CIF_STG_CB_CUSTOMER_SK_CIF_ID, "o6", "o1", "o2")
+

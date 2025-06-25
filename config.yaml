@@ -1,0 +1,43 @@
+cookie:
+  expiry_days: 1
+credentials:
+  usernames:
+    Moo:
+      failed_login_attempts: 0
+      first_name: Alsaidy
+      last_name: Mohamed
+      logged_in: false
+      password: Mohamed
+      roles:
+        - Reviewer
+        - admin
+    reda:
+      failed_login_attempts: 0
+      first_name: Mohamed
+      last_name: Reda
+      logged_in: false
+      password: reda
+      roles:
+        - admin
+privileges:
+  - view_data
+  - export_reports
+  - manage_users
+  - configure_system
+  - delete_data
+roles:
+  Reviewer:
+    description: Regular user with basic access
+    privileges:
+      - view_data
+      - export_reports
+  admin:
+    description: "Full system administrator "
+    privileges:
+      - manage_users
+      - delete_data
+  user:
+    description: Regular user with basic access
+    privileges:
+      - view_data
+      - export_reports
