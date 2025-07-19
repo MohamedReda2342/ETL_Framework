@@ -1,3 +1,5 @@
+from datetime import date
+
 class CurrentEnv:
   def __init__(self, env, bi_flag):
     env=str(env)
@@ -20,6 +22,9 @@ class CurrentEnv:
     self.Key_Table_DB_Name = "G"+env+"1T_UTLFW"
     self.Key_View_DB_Name = "G"+env+"1V_UTLFW"
     
+    self.Map_Table_DB_Name = "G"+env+"1T_UTLFW"
+    self.Map_View_DB_Name = "G"+env+"1V_UTLFW"
+
     #self.GCFR_Standard_Macros = 'G'+env+'1M_GCFR'
     self.GCFR_Standard_Utility_Stored_Procedure ='G'+env+'1P_UT'
     self.GCFR_Standard_Processing_Pattern_Stored_Procedure =  "G"+env+"1_PP"
@@ -56,4 +61,7 @@ class CurrentEnv:
     self.Verification_Flag =0
     self.File_Qualifier_Reset_Flag = 0
 
+
+# Get the current date
+    self.Business_Date = date.today()
     self.Process_Type = 21

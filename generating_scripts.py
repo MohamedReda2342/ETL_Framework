@@ -1,3 +1,4 @@
+import streamlit as st
 import pandas as pd
 import openpyxl
 from dotenv import load_dotenv
@@ -208,6 +209,7 @@ def join_bkey_stg_stream(smx_tabs, df,smx_dict):
     print(df3)
     #hard coded process type = 21 ==> _bkey
     search_string='_BKEY'
+    search_string=''
     filtered_df = df3[df3['stream name'].str.contains(search_string)]
     print(filtered_df)
     #on_cols=[source system alias, system name]
@@ -280,6 +282,12 @@ def get_params_values(smx_tab, df, smx_dict):
 
 
     smx_df=pd.DataFrame()
+    print("**********************************************************************************************")
+    
+    print(Fore.CYAN+f"{smx_tabs}")
+    print(len(smx_tabs))   
+    print("**********************************************************************************************")
+    
     '''
     if len(smx_tabs) >1:
         print(Back.LIGHTRED_EX+ "-------------- MULTIPLE SOURCE -----------------------------------------")    
@@ -308,6 +316,14 @@ def get_params_values(smx_tab, df, smx_dict):
     
 
     smx_df=join_bkey_stg_stream(smx_tabs, df, smx_dict)
+   
+    print(multiple_source_list)
+    if not(multiple_source_list):
+        print(Fore.YELLOW+ " it is a single source SO WE JUST FILTER THE TAB ON THE COLUMNS")
+        print(smx_dict.keys())
+        smx_df=smx_dict[smx_tab]
+        print(smx_df)
+
     print(Back.LIGHTRED_EX+ "----------------------------------------------------------------------------")
     
 
@@ -711,7 +727,7 @@ def main(smx_model, key_type, env , bigint_flag):
     #key_type = sys.argv[1]  # flag is N to create a new file, othewise it will append to the existing file
     #env = sys.argv[2] ## you can send the env in command line DEV - TST - PROD 
     # env = input("Enter the environment: DEV TST PROD ")
-    # key_type = input("enter key_type: BKEY_CALL     REG_BKEY_PROCESS    REG_BKEY_DOMAIN REG_BKEY ")
+    # key_type = input("enter key_type: BKEY_CALL     REG_BKEY_PROCESS    REG_BKEY_DOMAIN REG_BKEY    STREAM  REG_BMAP    REG_BMAP_DOMAIN")
     #key_type='REG_BKEY' #'REG_BKEY_DOMAIN'
     #env='TST'
     print(f"Generating {key_type} script for environment {env}")
@@ -785,49 +801,64 @@ def main(smx_model, key_type, env , bigint_flag):
                 for l in script:
                     myfile.write('\n'.join(l))
                     myfile.write('\n\n')
+        case "STREAM" :# STG tables".lower():
+            print("key type = ", key_type)
+            print(env_attributes)
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes )
+            #script= get_bkey_call_script(smx_model,filtered_script_df, env_attributes )
+            print("======================= returned script : ")
+            print(script)
+            for s in script:
+                print(Back.LIGHTGREEN_EX+ str(s))
+            
+            with open('REG_STREAM_script_output.txt', mode='wt', encoding='utf-8') as myfile:
+                for l in script:
+                    myfile.write('\n'.join(l))
+                    myfile.write('\n\n')
+
+        case "REG_BMAP" :# STG tables".lower():
+            print("key type = ", key_type)
+            print(env_attributes)
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes )
+            #script= get_bkey_call_script(smx_model,filtered_script_df, env_attributes )
+            print("======================= returned script : ")
+            print(script)
+            for s in script:
+                print(Back.LIGHTGREEN_EX+ str(s))
+            
+            with open('REG_BMAP_script_output.txt', mode='wt', encoding='utf-8') as myfile:
+                for l in script:
+                    myfile.write('\n'.join(l))
+                    myfile.write('\n\n')
+
+        case "REG_BMAP_DOMAIN" :# STG tables".lower():
+            print("key type = ", key_type)
+            print(env_attributes)
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes )
+            #script= get_bkey_call_script(smx_model,filtered_script_df, env_attributes )
+            print("======================= returned script : ")
+            print(script)
+            for s in script:
+                print(Back.LIGHTGREEN_EX+ str(s))
+            
+            with open('REG_BMAP_DOMAIN_script_output.txt', mode='wt', encoding='utf-8') as myfile:
+                for l in script:
+                    myfile.write('\n'.join(l))
+                    myfile.write('\n\n')
+
+
         case "bkey_views":
-            script = generate_bkey_views(smx_model,env)
+            script = Queries.generate_bkey_views(smx_model,env)
+        case "Insert BMAP values":
+            script = Queries.insert_bmap_values(smx_model,env)
+        case"Create LKP views":
+            script = Queries.create_LKP_views (smx_model, env)
+        case"create_stg_table_and_view":
+            script = Queries.create_stg_table_and_view (smx_model, env)
+        case"create_SCRI_table":
+            script = Queries.create_SCRI_table (smx_model, env)
+        case"create_SCRI_view":
+            script = Queries.create_SCRI_view (smx_model, env)
+        case"create_SCRI_input_view":
+           script = Queries.create_SCRI_input_view (smx_model, env)
     return script
-    # if name == 'main':
-def generate_bkey_views(smx_model , env):
-    """
-    Generate BKEY views by extracting required parameters from SMX model
-    and calling the Queries.bkey_views method
-    """
-    # Get STG tables dataframe from smx_model
-    stg_tables_df = smx_model['stg tables']
-    
-    # Filter for rows with non-null key set name and key domain name
-    bkey_df = stg_tables_df.dropna(subset=['key set name', 'key domain name'])
-    
-    # Also filter out empty strings if needed
-    bkey_df = bkey_df[
-        (bkey_df['key set name'] != '') & 
-        (bkey_df['key domain name'] != '')
-    ]
-    
-    # Extract required parameters
-    view_params = []
-    for _, row in bkey_df.iterrows():
-        params = {
-            'key_set_name': row['key set name'],
-            'key_domain_name': row['key domain name'],
-            'table_name': row['table name source'],
-            'column_name': row['column name source']
-        }
-        view_params.append(params)
-    
-    # Generate views using Queries.bkey_views
-    scripts = []
-    print("ennnnnnnnnnvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"+env)
-    for params in view_params:
-        view_script = Queries.bkey_views(
-            params['key_set_name'],
-            params['key_domain_name'], 
-            params['table_name'],
-            params['column_name'],
-            "G"+env+"1V_INP"
-        )
-        scripts.append(view_script)
-        
-    return scripts

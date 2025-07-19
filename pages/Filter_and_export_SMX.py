@@ -70,7 +70,7 @@ if uploaded_file is not None:
             "Select INT Type:",
             options =["int", "BIG int"],
             key="data_type",
-            disabled=(tab_name != "BKEY")  # Disable when BKEY tab is selected
+            # disabled=(tab_name != "BKEY")  
         )
 
     with col3:
@@ -94,7 +94,8 @@ if uploaded_file is not None:
         selected_domains = st.multiselect(
             "Select Key Domain :",
             options=key_domain_names,
-            key="key_domain_name" 
+            key="key_domain_name",
+            disabled=(tab_name != "BKEY")  
         )
     # filtered bkey df based on key set name && key domain name
     filtered_bkey_df = df_utlis.filter_by_column_value(filtered_key_set_names_DF, 'Key Domain Name', selected_domains)
@@ -103,11 +104,39 @@ if uploaded_file is not None:
         selected_tables = st.multiselect(
             "Select Table :",
             options= tables_names,
-            key="stg_tables" 
+            key="stg_tables",
+            disabled=(tab_name == "BMAP") 
         )
         filterd_STG_tables_df = df_utlis.filter_by_column_value(STG_tables_df, 'Table Name Source', selected_tables)
-    
+    multi_coll1, multi_coll2 = st.columns(2)
+    # Get BMAP dataframe
+    BMAP_df = df_utlis.load_sheet(file_content, "BMAP values")
+    # Create columns for selections
+    with multi_coll1:
+        # Show unique values from BMAP_df for selection
+        selected_code_set_names = st.multiselect(
+            "Select Code Set Name:",
+            options=BMAP_df['Code Set Name'].unique(),
+            key="code_set_names",
+            disabled=(tab_name == "BKEY")
+        )
+        
+    with multi_coll2:
+        selected_code_domain_names = st.multiselect(
+            "Select Code Domain Name:",
+            options=BMAP_df['Code Domain Name'].unique(),
+            key="code_domain_names",
+            disabled=(tab_name == "BKEY")
+        )
+    filtered_bmap_values_df=[]
+    # Filter and display selected rows
+    filtered_bmap_values_df = BMAP_df.copy()
 
+    if selected_code_set_names:
+        filtered_bmap_values_df = filtered_bmap_values_df[filtered_bmap_values_df['Code Set Name'].isin(selected_code_set_names)]
+
+    if selected_code_domain_names:
+        filtered_bmap_values_df = filtered_bmap_values_df[filtered_bmap_values_df['Code Domain Name'].isin(selected_code_domain_names)]
 
 #----------------------------------------   Process Selected Action  -------------------------------------------------------
 
@@ -120,31 +149,31 @@ if uploaded_file is not None:
     key_set_id = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Set ID'].iloc[0]
     Key_Domain_ID = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Domain ID'].iloc[0]
 
-    # if selected_action:
-    #     if tab_name == "System":
-    #         if selected_action == "register_system":
-    #             query_for_editor = Queries.register_system(Ctl_Id="",source_system_alias="",Path_Name="",source_system_name="")
-
-    #     elif tab_name == "Stream":
-    #         if selected_action == "register_stream":
-    #             query_for_editor = Queries.register_stream(Business_Date="",Cycle_Freq_Code="",stream_key="",stream_name="")
-        
 #---------------------------------------    Display query editor and execute query    ---------------------------------------
-    
-    # Workbook Should contain  Stream sheet
     Dict = {
-        "BKEY" : filtered_bkey_df,
-        "STG tables" : filterd_STG_tables_df,
-        "Stream" : df_utlis.load_sheet(file_content, "Stream")
+        # "BKEY" : filtered_bkey_df,
+        "BKEY":df_utlis.load_sheet(file_content, "BKEY"),
+        # "STG tables" : filterd_STG_tables_df,
+        "STG tables" : df_utlis.load_sheet(file_content, "STG tables"),
+        "Stream" : df_utlis.load_sheet(file_content, "Stream"),
+        "BMAP values" : filtered_bmap_values_df,
+        "BMAP" : df_utlis.load_sheet(file_content, "BMAP"),
+        "CORE tables": df_utlis.load_sheet(file_content, "CORE tables"),
     }
-
-    st.write(filterd_STG_tables_df)
+    # st.write(filterd_STG_tables_df)
     print("------Main---------")
     smx_model = {k.lower(): v for k, v in Dict.items()}
 
-    # Process each DataFrame: lowercase and remove spaces from column names
+    # Process each DataFrame: lowercase
     for key in smx_model:
         smx_model[key].columns = [col.lower() for col in smx_model[key].columns]
+   
+    stg_df = smx_model["stg tables"]
+    bkey_df = smx_model["bkey"]
+    filterd_bkey_df = bkey_df.merge(stg_df,on=["key set name","key domain name"],how='inner')
+    filterd_bkey_df = filterd_bkey_df.drop_duplicates(subset=['key set name', 'key domain name'])[
+    ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical table']]
+    st.write(filterd_bkey_df)
 
 
     # At the top of your script logic, after the button columns
@@ -155,26 +184,22 @@ if uploaded_file is not None:
         st.session_state["generated_query"] = ""
     with gen_query_col:
         if st.button(f"Generate Query", key=f"Generate_Query_Bttn"):
-            # Check if all required selections are made
-            if not (selected_domains and selected_tables and selected_action and selected_environment and selected_key_set and Frequency) :
-                st.error("Please complete selections")
+            script = main(smx_model, selected_action, selected_environment, bigint_flag)
+            
+            # Format the script output
+            if script and isinstance(script, list):
+                flattened_queries = []
+                for item in script:
+                    if isinstance(item, list):
+                        flattened_queries.extend(item)
+                    else:
+                        flattened_queries.append(item)
+                query_for_editor = '\n'.join(flattened_queries)
             else:
-                script = main(smx_model, selected_action, selected_environment, bigint_flag)
+                query_for_editor = str(script) if script else ""
                 
-                # Format the script output
-                if script and isinstance(script, list):
-                    flattened_queries = []
-                    for item in script:
-                        if isinstance(item, list):
-                            flattened_queries.extend(item)
-                        else:
-                            flattened_queries.append(item)
-                    query_for_editor = '\n'.join(flattened_queries)
-                else:
-                    query_for_editor = str(script) if script else ""
-                    
-                st.session_state["generated_query"] = query_for_editor
-                st.rerun()  # Refresh to show the updated content
+            st.session_state["generated_query"] = query_for_editor
+            st.rerun()  # Refresh to show the updated content
 
     # Display the query editor (outside the button condition)
     current_query_in_editor = st.text_area(

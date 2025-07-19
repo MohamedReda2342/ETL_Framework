@@ -107,36 +107,3 @@ def create_core_tables(sql_script):
             return response
         except teradatasql.DatabaseError as db_err:
             return db_err
-
-def create_core(sql_script):
-    params = get_connection_params()
-    db_user_for_table = params["user"]
-    
-    create_table_query = f"CREATE SET TABLE {db_user_for_table}.SampleEmployee " \
-        "(Associate_Id     INTEGER, " \
-        "Associate_Name   CHAR(25), " \
-        "Job_Title        VARCHAR(25)) " \
-        "UNIQUE PRIMARY INDEX (Associate_Id);"
-
-    try:
-        with get_connection() as con:
-            with con.cursor() as cur:
-                try:
-                    cur.execute(create_table_query)
-                    print(f"Sample table {db_user_for_table}.SampleEmployee created.")
-                except teradatasql.DatabaseError as db_err:
-                    print("Error while executing the query:", db_err)
-    except teradatasql.DatabaseError as db_err:
-        print("Error while connecting to the Teradata database:", db_err)
-
-def execute_custom_query(query_string):
-    try:
-        result_df = execute_query(query_string)
-        return result_df, query_string
-    except Exception as e:
-        print(f"Error executing custom query: {str(e)}")
-        raise e
-
-# For backward compatibility
-def create_table(script):
-    print(script)

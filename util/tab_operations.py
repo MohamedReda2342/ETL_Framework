@@ -18,7 +18,6 @@ def get_key_set_options(file_content, selected_tables):
         # If tables are selected, filter key set names based on STG tables
         if selected_tables:
             # Filter STG sheet based on selected tables and get unique key set names
-            # stg_df = stg_sheet[stg_sheet['Table Name Source'].isin(selected_tables)]
             stg_df = df_utlis.filter_by_column_value(stg_sheet, 'Table Name Source', selected_tables)
             key_set_names = df_utlis.get_unique_values(stg_df, 'Key Set Name')
         else:
@@ -30,27 +29,16 @@ def get_key_set_options(file_content, selected_tables):
     except Exception as e:
         return [f"Error loading sheets: {str(e)}"]
   
+
 def get_action_options(tab_name):
     if tab_name == "BKEY" :
         return ["REG_BKEY","REG_BKEY_DOMAIN","REG_BKEY_PROCESS","BKEY_CALL","bkey_views"]
-    # elif tab_name == "System":
-    #     return "register_system"
-    # elif tab_name == "Stream":
-    #     return "register_stream"
-
-# get_domain_name_options
-# def get_domain_name_options(file_content, selected_key_set):
-#     if not selected_key_set:
-#         return [], None
-#     bkey_sheet = df_utlis.load_sheet(file_content, "BKEY")
-#     bkey_DF = bkey_sheet.copy()
-    
-#     if selected_key_set != "All":
-#         bkey_DF = df_utlis.filter_by_column_value(bkey_DF, 'Key Set Name', selected_key_set)
-#         return df_utlis.get_unique_values(bkey_DF, 'Key Domain Name'), bkey_DF
-#     else:
-#         return df_utlis.get_unique_values(bkey_DF, 'Key Domain Name'), bkey_DF
-
+    elif tab_name == "Stream":
+        return "STREAM"
+    elif tab_name =="BMAP":
+        return ["REG_BMAP" , "REG_BMAP_DOMAIN" ,"Insert BMAP values" , "Create LKP views"]
+    elif tab_name =="STG tables":
+        return ["create_stg_table_and_view","create_SCRI_table" ,"create_SCRI_view","create_SCRI_input_view"]
 
 def get_stg_table_options (file_content, selected_key_set):
     try:

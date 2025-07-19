@@ -19,6 +19,15 @@ credentials:
       password: reda
       roles:
       - admin
+    sss:
+      failed_login_attempts: 0
+      first_name: sss
+      last_name: sss
+      logged_in: false
+      password: ssss
+      roles:
+      - user
+      - admin
 privileges:
 - view_data
 - export_reports
@@ -27,10 +36,11 @@ privileges:
 - delete_data
 roles:
   Reviewer:
-    description: Regular user with basic access
+    description: Regular user with basic accessss
     privileges:
     - view_data
     - export_reports
+    - manage_users
   admin:
     description: 'Full system administrator '
     privileges:

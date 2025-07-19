@@ -6,17 +6,17 @@
     "configurations": [
         {
             "name": "Python Debugger: Current File",
-            "type": "debugpy",
+            "type": "python",
             "request": "launch",
-            "program": "D:/Downloads/et2/ETL_Framework/venv/Scripts/streamlit.exe",
+            "program": "${workspaceFolder}/venv/Scripts/streamlit.exe",
             "console": "integratedTerminal",
             "args": [
                 "run",
-                "Read_SMX_workbook.py"
+                "Compare_between_SMX.py"
             ],
-            "cwd": "D:/Downloads/et2/ETL_Framework",
+            "cwd": "${workspaceFolder}",
             "env": {
-                "PYTHONPATH": "D:/Downloads/et2/ETL_Framework"
+                "PYTHONPATH": "${workspaceFolder}"
             }
         }
     ]

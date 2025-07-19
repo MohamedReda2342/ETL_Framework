@@ -2,4 +2,4 @@
 .pyc
 .venv
 # ignore this folder
-Exported Queries/
+**/Exported Queries/
