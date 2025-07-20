@@ -1,5 +1,5 @@
 cookie:
-  expiry_days: 1
+  expiry_days: 1000
 credentials:
   usernames:
     Moo:
@@ -9,8 +9,8 @@ credentials:
       logged_in: false
       password: Mohamed
       roles:
-      - Reviewer
-      - admin
+        - Reviewer
+        - admin
     reda:
       failed_login_attempts: 0
       first_name: Mohamed
@@ -18,7 +18,7 @@ credentials:
       logged_in: false
       password: reda
       roles:
-      - admin
+        - admin
     sss:
       failed_login_attempts: 0
       first_name: sss
@@ -26,33 +26,33 @@ credentials:
       logged_in: false
       password: ssss
       roles:
-      - user
-      - admin
+        - user
+        - admin
 privileges:
-- view_data
-- export_reports
-- manage_users
-- configure_system
-- delete_data
+  - view_data
+  - export_reports
+  - manage_users
+  - configure_system
+  - delete_data
 roles:
   Reviewer:
     description: Regular user with basic accessss
     privileges:
-    - view_data
-    - export_reports
-    - manage_users
+      - view_data
+      - export_reports
+      - manage_users
   admin:
-    description: 'Full system administrator '
+    description: "Full system administrator "
     privileges:
-    - manage_users
-    - delete_data
+      - manage_users
+      - delete_data
   gg:
     description: hh
     privileges:
-    - view_data
-    - export_reports
+      - view_data
+      - export_reports
   user:
     description: Regular user with basic access
     privileges:
-    - view_data
-    - export_reports
+      - view_data
+      - export_reports

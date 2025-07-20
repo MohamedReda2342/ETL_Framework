@@ -1,4 +1,6 @@
 import streamlit as st
+from streamlit_ace import st_ace
+
 import pandas as pd
 import io
 import os # Added import
@@ -27,10 +29,17 @@ with st.sidebar:
 # Process the file when uploaded
 if uploaded_file is not None:
     file_content = uploaded_file.getvalue()
-    sheet_names = df_utlis.get_excel_sheet_names(file_content)
-    excel_file_name = uploaded_file.name.split('.')[0] # Get Excel file name without extension
+    sheets_names = df_utlis.get_excel_sheet_names(file_content)
+    bkey_sheet = df_utlis.load_sheet(file_content, "BKEY")
+    stg_tables_sheet = df_utlis.load_sheet(file_content, "STG tables")
+    Stream_sheet = df_utlis.load_sheet(file_content, "Stream")
+    # bmap_values_sheet = filtered_bmap_values_df
+    bmap_sheet = df_utlis.load_sheet(file_content, "BMAP")
+    core_tables_sheet = df_utlis.load_sheet(file_content, "CORE tables")
+    
+    excel_file_name = uploaded_file.name.split('.')[0] # Get Excel file name without file extension for exporting query to file
+    col1, col2 , col3 = st.columns(3)    
 
-    col1, col2 ,col3= st.columns(3)
     with col1:
         selected_environment = st.selectbox(
             "Select Environment :",
@@ -41,7 +50,7 @@ if uploaded_file is not None:
     with col2:
         selected_tab = st.selectbox(
             "Select key area :",
-            options=sheet_names,
+            options=sheets_names,
             index=0,
             key="tab_selector",
         )
@@ -74,7 +83,7 @@ if uploaded_file is not None:
         )
 
     with col3:
-        key_set_names ,bkey_sheet =tab_operations.get_key_set_options(file_content , selected_tables=[])
+        key_set_names = bkey_sheet['Key Set Name'].dropna().unique().tolist()
         selected_key_set = st.selectbox( 
         "Select Key Set Name:", 
         options = key_set_names,
@@ -83,7 +92,7 @@ if uploaded_file is not None:
     )
     filtered_key_set_names_DF = df_utlis.filter_by_column_value(bkey_sheet, 'Key Set Name', selected_key_set)
     # Filtered STG tables By Key Set Name
-    tables_names , STG_tables_df = tab_operations.get_stg_table_options(file_content, selected_key_set)
+    tables_names , STG_tables_df = tab_operations.get_stg_table_options(stg_tables_sheet, selected_key_set)
     # key domain name Column in ( STG Tables ) which is filtered already by key set name 
     key_domain_names = df_utlis.get_unique_values(STG_tables_df, 'Key Domain Name')
 
@@ -108,6 +117,7 @@ if uploaded_file is not None:
             disabled=(tab_name == "BMAP") 
         )
         filterd_STG_tables_df = df_utlis.filter_by_column_value(STG_tables_df, 'Table Name Source', selected_tables)
+    print(selected_tables)
     multi_coll1, multi_coll2 = st.columns(2)
     # Get BMAP dataframe
     BMAP_df = df_utlis.load_sheet(file_content, "BMAP values")
@@ -139,8 +149,6 @@ if uploaded_file is not None:
         filtered_bmap_values_df = filtered_bmap_values_df[filtered_bmap_values_df['Code Domain Name'].isin(selected_code_domain_names)]
 
 #----------------------------------------   Process Selected Action  -------------------------------------------------------
-
-
     if data_type == "int":
         bigint_flag = "0"
     elif data_type == "BIG int":
@@ -151,15 +159,15 @@ if uploaded_file is not None:
 
 #---------------------------------------    Display query editor and execute query    ---------------------------------------
     Dict = {
-        # "BKEY" : filtered_bkey_df,
-        "BKEY":df_utlis.load_sheet(file_content, "BKEY"),
-        # "STG tables" : filterd_STG_tables_df,
-        "STG tables" : df_utlis.load_sheet(file_content, "STG tables"),
-        "Stream" : df_utlis.load_sheet(file_content, "Stream"),
-        "BMAP values" : filtered_bmap_values_df,
-        "BMAP" : df_utlis.load_sheet(file_content, "BMAP"),
-        "CORE tables": df_utlis.load_sheet(file_content, "CORE tables"),
-    }
+            # "BKEY" : filtered_bkey_df,
+            "BKEY":bkey_sheet,
+            # "STG tables" : filterd_STG_tables_df,
+            "STG tables" :stg_tables_sheet,
+            "Stream" : Stream_sheet,
+            "BMAP values" : filtered_bmap_values_df,
+            "BMAP" : bmap_sheet,
+            "CORE tables": core_tables_sheet,
+        }
     # st.write(filterd_STG_tables_df)
     print("------Main---------")
     smx_model = {k.lower(): v for k, v in Dict.items()}
@@ -202,6 +210,16 @@ if uploaded_file is not None:
             st.rerun()  # Refresh to show the updated content
 
     # Display the query editor (outside the button condition)
+        # Display the query editor (outside the button condition)
+#     current_query_in_editor = st_ace(
+#     value=st.session_state["generated_query"],
+#     language='sql',
+#     # theme='github',  # or 'github', 'tomorrow', etc.
+#     key="query_editor_widget",
+#     height=400,
+#     auto_update=True,
+# )
+
     current_query_in_editor = st.text_area(
         "Query:",
         value=st.session_state["generated_query"],

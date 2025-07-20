@@ -309,21 +309,21 @@ def create_SCRI_input_view(smx_model,environment):
         conditions_str = "\n OR ".join(conditions)
         #  ------------------- create Scrpit for current table ------------------------------
         create_stmnt = f"""
-        REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR  ACCESS 
+            REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR  ACCESS 
         SELECT
         {source_columns_str},
-    SOURCE.Start_Ts,
-    SOURCE.End_Ts,
-    SOURCE.Start_Date,
-    SOURCE.End_Date,
-    SOURCE.Record_Deleted_Flag,
-    SOURCE.Ctl_Id, 
-    SOURCE.File_Id,
-    SOURCE.Process_Name,
-    SOURCE.Process_Id,
-    SOURCE.Update_Process_Name,
-    SOURCE.Update_Process_Id,
-    1 AS GCFR_DELTA_ACTION_CODE, 
+        SOURCE.Start_Ts,
+        SOURCE.End_Ts,
+        SOURCE.Start_Date,
+        SOURCE.End_Date,
+        SOURCE.Record_Deleted_Flag,
+        SOURCE.Ctl_Id, 
+        SOURCE.File_Id,
+        SOURCE.Process_Name,
+        SOURCE.Process_Id,
+        SOURCE.Update_Process_Name,
+        SOURCE.Update_Process_Id,
+        1 AS GCFR_DELTA_ACTION_CODE, 
         {BKscolumns_str}           
         {BMscolumns_str}
         FROM G{environment}1V_STG.{table_name_stg} SOURCE

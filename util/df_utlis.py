@@ -17,12 +17,6 @@ def df_groupBy(df, col) :
     return df_returned
 
 def filter_by_column_value(df, column_name, values_to_filter):
-    if column_name not in df.columns:
-        return df
-
-    if values_to_filter is None or (isinstance(values_to_filter, list) and not values_to_filter):
-        return df
-
     # Ensure values_to_filter is a list for consistent processing
     if not isinstance(values_to_filter, list):
         values_list = [values_to_filter]
@@ -36,3 +30,5 @@ def get_unique_values(df, column_name):
     if column_name in df.columns:
         return df[column_name].dropna().unique().tolist()
     return []
+
+    
