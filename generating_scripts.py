@@ -39,6 +39,30 @@ def generate_script(area, function, df_selection):
 '''
 
 
+# Load the .env file
+#load_dotenv()
+#host = os.getenv("TD_DB_HOST")
+
+## constants: to be moved to env
+#'Key_Set_Name'	bkey	key set name
+#Key_Set_Id	bkey	key set id
+
+#Key_Table_Name= os.getenv('KEY_TABLE_NAME')	
+#'Key_Domain_Name'		key domain name
+'''
+BIGINT_Flag=	0	
+Key_View_DB_Name=os.getenv('KEY_VIEW_DB_NAME')		
+Key_Table_DB_Name=os.getenv('KEY_TABLE_DB_NAME')		
+#Domain_Id		key domain id
+'''
+'''
+def generate_script(area, function, df_selection):
+    print(area)
+    print(function)
+    print(df_selection)
+'''
+
+
 def load_script_model():
     obj = pd.read_pickle(r'pickled_df/bkey_functions.pkl')
     return obj
@@ -50,9 +74,7 @@ def create_template(filename, key_type):
     end='('
     fs= [s.strip('EXEC') for s in fs]
     functions = [s[s.find(start)+len(start):s.rfind(end)] for s in fs]
-
     return functions 
-
 
 def load_smx_file(filename):
     work_book = openpyxl.load_workbook(data_file)
@@ -68,7 +90,6 @@ def load_smx_file(filename):
 
     smx_df = pd.DataFrame(smx_model.items())
     return smx_model, smx_df
-
 
 def load_syntax_model(syntax_file):
     work_book = openpyxl.load_workbook(syntax_file)
@@ -138,12 +159,7 @@ def get_params_values(smx_tab, df, smx_dict):
     ll2 = [item for item in smx_source_list if item != 'env']
     flattened_list = [item for sublist in ll2 for item in sublist]
 
-    multiple_source_list = [x for x in smx_source_list if len(x) > 1] #[ len(l) for l in smx_source_list]
-    print(Back.CYAN+ "Multiple sources list")
-    print(multiple_source_list)
-    #check the multiple sources and the maximum in order to join the dataframes
-
-    print(type(multiple_source_list))
+    multiple_source_list = [x for x in smx_source_list if len(x) > 1]
     
     import itertools
     if multiple_source_list:
@@ -156,39 +172,7 @@ def get_params_values(smx_tab, df, smx_dict):
     smx_tabs_df=[]
 
     smx_df=pd.DataFrame()
-    print("**********************************************************************************************")
     
-    print(Fore.CYAN+f"{smx_tabs}")
-    print(len(smx_tabs))   
-    print("**********************************************************************************************")
-    
-    '''
-    if len(smx_tabs) >1:
-        print(Back.LIGHTRED_EX+ "-------------- MULTIPLE SOURCE -----------------------------------------")    
-        print(len(smx_tabs))
-        if len(smx_tabs)==2:
-            print(smx_join_key)
-            print(type(smx_join_key))
-            on_cols=smx_join_key[0].split(",")
-            print(on_cols)
-            df1=smx_dict[smx_tabs[0]]
-            #print(df1)
-            df2=smx_dict[smx_tabs[1]]
-            #print(df2)
-            #smx_df= pd.merge(df1, df2, on=['key set name','key domain name'], how='left')
-            smx_df= pd.merge(df1, df2, on=on_cols, how='left')
-            print(smx_df)
-        elif len(smx_tabs)>2:
-            print(Fore.GREEN + "3 parameters")
-            smx_df=join_bkey_stg_stream(smx_tabs, df, smx_dict)
-            print(smx_df)
-        
-    else:
-        smx_df=smx_dict[smx_tab]
-    '''
-
-    
-
     smx_df=join_bkey_stg_stream(smx_tabs, df, smx_dict)
    
     if not(multiple_source_list):
@@ -297,7 +281,6 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes):
         df['operation_schema_functions'] = df[['operation','schema_functions']].agg(' '.join, axis=1)
         df= df.drop(['operation', 'schema', 'functions', 'schema_functions'], axis=1)
 
-        smx_tab_lst= list(smx_tab)
         if 'env' in list(smx_tab):
             smx_tab_lst.remove('env')
         
@@ -330,8 +313,6 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes):
 
         fn_scripts=set(params_df['script'])
         scripts.append(list(fn_scripts))
-        del params_df, merged_column
-    del df_by_function
 
     return scripts
 
@@ -419,3 +400,5 @@ def main(smx_model, key_type, env , bigint_flag):
         case"create_SCRI_input_view":
            script = Queries.create_SCRI_input_view (smx_model, env)
     return script
+
+
