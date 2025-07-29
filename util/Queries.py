@@ -333,25 +333,3 @@ def create_SCRI_input_view(smx_model,environment):
         """  
         sql_scripts.append(create_stmnt.strip())
     return "\n\n".join(sql_scripts)
-
-
-def create_core_table(smx_model, environment):
-    core_tables_df = smx_model["core tables"]
-    for
-    return f"""
-    CREATE MULTISET TABLE G{environment}1T_CORE.{table_name}
-(
-	{columns},
-	Start_Ts TIMESTAMP(6) WITH TIME ZONE,
-    End_Ts TIMESTAMP(6) WITH TIME ZONE,
-    Start_Date DATE FORMAT 'YYYY-MM-DD',,
-    End_Date DATE FORMAT 'YYYY-MM-DD',,
-    Record_Deleted_Flag BYTEINT,
-    Ctl_Id SMALLINT COMPRESS 997,
-    File_Id SMALLINT COMPRESS 997,
-    Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-    Process_Id INTEGER,
-    Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-    Update_Process_Id INTEGER
-)PRIMARY INDEX ({pk});
-"""
