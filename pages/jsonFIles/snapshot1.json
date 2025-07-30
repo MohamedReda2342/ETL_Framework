@@ -1,0 +1,191 @@
+[
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_CB_CUSTOMER",
+        "Column name": "PRTY_ID",
+        "Mapped to table": "STG_CB_CUSTOMER",
+        "Mapped to column": "SK_CIF_ID",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_CB_CUSTOMER",
+        "Column name": "PRTY_DESC",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_CB_CUSTOMER",
+        "Column name": "PRTY_NUM",
+        "Mapped to table": "STG_CB_CUSTOMER",
+        "Mapped to column": "CIF_ID",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_CB_CUSTOMER",
+        "Column name": "PRTY_STRT_DTTM",
+        "Mapped to table": "STG_CB_CUSTOMER",
+        "Mapped to column": "CUSTOMER_SINCE",
+        "Transformation type": "SQL",
+        "Transformation rule": "CAST(CUSTOMER_SINCE AS DATE FORMAT 'YYYYMMDD')"
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_CB_CUSTOMER",
+        "Column name": "PRTY_END_DTTM",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_CB_CUSTOMER",
+        "Column name": "PARTY_TYPE_CD",
+        "Mapped to table": "STG_CB_CUSTOMER",
+        "Mapped to column": "BM_CUST_STATUS",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_CB_CUSTOMER",
+        "Column name": "INITIAL_DATA_SRC_CD",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": 1
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_HR_EMP",
+        "Column name": "PRTY_ID",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "SK_EMP_ID",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_HR_EMP",
+        "Column name": "PRTY_DESC",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_HR_EMP",
+        "Column name": "PRTY_NUM",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "EMP_ID",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_HR_EMP",
+        "Column name": "PRTY_STRT_DTTM",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "EMP_START_DATE",
+        "Transformation type": "SQL",
+        "Transformation rule": "CAST(EMP_START_DATE AS DATE FORMAT 'YYYYMMDD')"
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_HR_EMP",
+        "Column name": "PRTY_END_DTTM",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_HR_EMP",
+        "Column name": "PARTY_TYPE_CD",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "BM_EMP_STATUS",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_PARTY_L0_HR_EMP",
+        "Column name": "INITIAL_DATA_SRC_CD",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": 2
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_INDIVIDUAL_L0_HR_EMP",
+        "Column name": "INDIVIDUAL_PARTY_ID",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "EMP_ID",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_INDIVIDUAL_L0_HR_EMP",
+        "Column name": "BIRTH_DT",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "DOB",
+        "Transformation type": "SQL",
+        "Transformation rule": "CAST(DOB AS DATE FORMAT 'YYYYMMDD')"
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_INDIVIDUAL_L0_HR_EMP",
+        "Column name": "GENDER_TYPE_CD",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "BM_EMP_GENDER",
+        "Transformation type": "COPY",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_INDIVIDUAL_L0_HR_EMP",
+        "Column name": "NATIONALITY_CD",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_INDIVIDUAL_L0_HR_EMP",
+        "Column name": "EMPLOYMENT_START_DTTM",
+        "Mapped to table": "STG_HR_EMP",
+        "Mapped to column": "EMP_START_DATE",
+        "Transformation type": "SQL",
+        "Transformation rule": "CAST(EMP_START_DATE AS TIMESTAMP(0) FORMAT 'YYYYMMDD')"
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_INDIVIDUAL_L0_HR_EMP",
+        "Column name": "MARITAL_STATUS_CD",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": null
+    },
+    {
+        "Layer": "CORE",
+        "Mapping name": "L1_INDIVIDUAL_L0_HR_EMP",
+        "Column name": "OTHER_NATIONALITY_CD",
+        "Mapped to table": null,
+        "Mapped to column": null,
+        "Transformation type": "CONST",
+        "Transformation rule": null
+    }
+]
