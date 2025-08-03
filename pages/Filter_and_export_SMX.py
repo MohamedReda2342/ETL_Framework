@@ -120,7 +120,7 @@ if uploaded_file is not None:
     print(selected_tables)
     multi_coll1, multi_coll2 = st.columns(2)
     # Get BMAP dataframe
-    BMAP_df = df_utlis.load_sheet(file_content, "BMAP values")
+    BMAP_df = df_utlis.load_sheet(file_content, "BMAP Values")
     # Create columns for selections
     with multi_coll1:
         # Show unique values from BMAP_df for selection
@@ -180,7 +180,7 @@ if uploaded_file is not None:
     bkey_df = smx_model["bkey"]
     filterd_bkey_df = bkey_df.merge(stg_df,on=["key set name","key domain name"],how='inner')
     filterd_bkey_df = filterd_bkey_df.drop_duplicates(subset=['key set name', 'key domain name'])[
-    ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical table']]
+    ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical_table']]
     st.write(filterd_bkey_df)
 
 
@@ -209,16 +209,6 @@ if uploaded_file is not None:
             st.session_state["generated_query"] = query_for_editor
             st.rerun()  # Refresh to show the updated content
 
-    # Display the query editor (outside the button condition)
-        # Display the query editor (outside the button condition)
-#     current_query_in_editor = st_ace(
-#     value=st.session_state["generated_query"],
-#     language='sql',
-#     # theme='github',  # or 'github', 'tomorrow', etc.
-#     key="query_editor_widget",
-#     height=400,
-#     auto_update=True,
-# )
 
     current_query_in_editor = st.text_area(
         "Query:",

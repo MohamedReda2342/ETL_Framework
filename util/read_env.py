@@ -5,21 +5,19 @@ class CurrentEnv:
     env=str(env)
     self.env = env #'DEV' # 'TST' 'PROD'
     
-    self.Debug_Level='O6'
-    self.oReturn_Code='O1'
-    self.oReturn_Message='O2'
+    self.Debug_Level=6
+    self.oReturn_Code= '01'
+    self.oReturn_Message= '02' 
     self.OMessage = ':OMessage'
-    self.Collect_Stats=0
-    self.Verification_Flag=0
+    
 
-    self.BIGINT_Flag = bi_flag 
+    self.BIGINT_Flag = str(bi_flag) 
 
   #GDEV1T_GCFR	GCFR Standard Tables
   #GDEV1V_GCFR	GCFR Standard Views
 
-    #self.Key_Table_DB_Name = 'G'+env+'1T_GCFR'
-    #self.Key_View_DB_Name = "G"+ env + "1V_GCFR"
-    self.Key_Table_DB_Name = "G"+env+"1T_UTLFW"
+    
+    self.Key_Table_DB_Name= "G"+env+"1T_UTLFW"
     self.Key_View_DB_Name = "G"+env+"1V_UTLFW"
     
     self.Map_Table_DB_Name = "G"+env+"1T_UTLFW"
@@ -61,6 +59,23 @@ class CurrentEnv:
     self.Verification_Flag =0
     self.File_Qualifier_Reset_Flag = 0
 
+    self.Description=""
+    
+
+    self.SRCI_Process_Type =25
+    self.SRCI_Out_DB_Name = "G"+env+ "1V_SRCI" 
+    self.SRCI_Target_TableDatabaseName = "G"+env+"1T_SRCI" # = SRCI Tables DB
+
+    self.SRCI_Collect_Stats =1
+    
+    self.SRCI_Truncate_Target=1
+    self.SRCI_Verification_Flag=0
+    
+    
+    self.SRCI_File_Qualifier_Reset_Flag=0
+    self.SRCI_Key_Set_ID =""
+    self.SRCI_Domain_Id =""
+    self.SRCI_Code_Set_Id =""
 
 # Get the current date
     self.Business_Date = date.today()

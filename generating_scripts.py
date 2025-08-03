@@ -12,55 +12,9 @@ import sys
 from colorama import init, Fore, Back, Style
 init(autoreset=True)  # Initialize colorama
 from itertools import chain  
+import regex as re
+import psutil
 from util import Queries
-
-
-# Load the .env file
-#load_dotenv()
-#host = os.getenv("TD_DB_HOST")
-
-## constants: to be moved to env
-#'Key_Set_Name'	bkey	key set name
-#Key_Set_Id	bkey	key set id
-
-#Key_Table_Name= os.getenv('KEY_TABLE_NAME')	
-#'Key_Domain_Name'		key domain name
-'''
-BIGINT_Flag=	0	
-Key_View_DB_Name=os.getenv('KEY_VIEW_DB_NAME')		
-Key_Table_DB_Name=os.getenv('KEY_TABLE_DB_NAME')		
-#Domain_Id		key domain id
-'''
-'''
-def generate_script(area, function, df_selection):
-    print(area)
-    print(function)
-    print(df_selection)
-'''
-
-
-# Load the .env file
-#load_dotenv()
-#host = os.getenv("TD_DB_HOST")
-
-## constants: to be moved to env
-#'Key_Set_Name'	bkey	key set name
-#Key_Set_Id	bkey	key set id
-
-#Key_Table_Name= os.getenv('KEY_TABLE_NAME')	
-#'Key_Domain_Name'		key domain name
-'''
-BIGINT_Flag=	0	
-Key_View_DB_Name=os.getenv('KEY_VIEW_DB_NAME')		
-Key_Table_DB_Name=os.getenv('KEY_TABLE_DB_NAME')		
-#Domain_Id		key domain id
-'''
-'''
-def generate_script(area, function, df_selection):
-    print(area)
-    print(function)
-    print(df_selection)
-'''
 
 
 def load_script_model():
@@ -150,114 +104,284 @@ def join_bkey_stg_stream(smx_tabs, df,smx_dict):
     smx_df = pd.merge(merged, filtered_df, left_on='source system alias', right_on='system name', how='left')
     return smx_df
 
-def get_params_values(smx_tab, df, smx_dict):
+def join_columns(smx_tabs, df,smx_dict, key_type):
+    print(Fore.YELLOW+"-------------------- In the join function -----------------------")
+    the_joined_smx_tabs= pd.DataFrame()
+    print(df)
+    print(smx_tabs)
+    print(key_type)
+    if key_type=='EXEC_SRCI':
+        search_string='_SRCI'
+        df2=smx_dict['stg tables']
+        
+        df3=smx_dict['stream']
+        filtered_df=df3[df3['stream name'].str.contains(search_string)]
+        the_joined_smx_tabs = pd.merge(df2, filtered_df, left_on='source system alias', right_on='system name', how='left')
+
+    else:
+       
+       the_joined_smx_tabs= join_bkey_stg_stream(smx_tabs, df,smx_dict)
+
+
+    print(the_joined_smx_tabs)
+    return the_joined_smx_tabs
+def get_params_values_better(smx_tab, df, smx_dict, key_type):
+    print(Back.LIGHTRED_EX+ "==================    get_params_values_better   ========================================================")
+    print(key_type)
+    print(smx_tab)
+    print(df.columns)
+    print(Back.CYAN+ "incoming df parameters - content of parameters")
+    print(df.columns)
+    print(df[['parameter_name','source', 'parameter']])
+
     smx_lst=list(df['smx_column'])
     smx_tabs_lst=list(df['source'])
-    smx_join_key=list(df.query('join_key == join_key')['join_key'])
+    #smx_join_key=list(df.query('join_key == join_key')['join_key'])
+    
+    print(Fore.LIGHTGREEN_EX+ f'{smx_lst}')
+    print(Fore.RED+"this is the smx_tabs_lst")
+    print(smx_tabs_lst)
+    #print(smx_join_key)
     
     smx_source_list= [x.split(',') for x in smx_tabs_lst]
-    ll2 = [item for item in smx_source_list if item != 'env']
-    flattened_list = [item for sublist in ll2 for item in sublist]
 
-    multiple_source_list = [x for x in smx_source_list if len(x) > 1]
+    print(smx_source_list)
+    ll2 = [item for item in smx_source_list if item != 'env']
+    print(Back.CYAN+ "ll2")
+
+    print(ll2)
+    flattened_list = [item for sublist in ll2 for item in sublist]
+    print(flattened_list)
+
+
+    multiple_source_list = [x for x in smx_source_list if len(x) > 1] #[ len(l) for l in smx_source_list]
+    print(Back.CYAN+ "Multiple sources list")
+    print(multiple_source_list)
+    #check the multiple sources and the maximum in order to join the dataframes
+
+    print(type(multiple_source_list))
     
     import itertools
     if multiple_source_list:
+        print(Fore.LIGHTGREEN_EX+'here in multiple source list \n checking on the tabs')
         multiple_source_list = list(itertools.chain(*multiple_source_list))
+        print(Back.CYAN+ "FLATTENED Multiple sources list")
+        print(multiple_source_list)
+        print(Back.CYAN+ "SET FLATTENED Multiple sources list")
+        print(set(multiple_source_list))
+        print(list(set(multiple_source_list)))
         smx_tabs=multiple_source_list
-    else:
+    else:   
+        print(Fore.LIGHTGREEN_EX+'here in multiple source list: else ie not multiple source')
         smx_tabs=flattened_list
 
-    smx_list = [x.lower() for x in smx_lst if pd.notnull(x)]
-    smx_tabs_df=[]
-
-    smx_df=pd.DataFrame()
     
-    smx_df=join_bkey_stg_stream(smx_tabs, df, smx_dict)
+
+    #smx_cols_list = [x.split(',') for x in smx_lst]
+    #print(smx_cols_list)
+    smx_list = [x.lower() for x in smx_lst if pd.notnull(x)]
+    print(Back.CYAN+ "SMX list - content of smx_column")
+
+    print(smx_list)
+    print(smx_tab)
+    smx_tabs_df=[]
+    #smx_tabs=smx_tab.split(',')
+    smx_df=pd.DataFrame()
+    print("**********************************************************************************************")
+    
+    print(Fore.CYAN+f"{smx_tabs}")
+    print(len(smx_tabs))   
+    print("**********************************************************************************************")
+    
+    
    
+    #smx_df=join_bkey_stg_stream(smx_tabs, df, smx_dict)
+    smx_df=join_columns(smx_tabs, df, smx_dict, key_type)
+
+    print(smx_df)
+   
+    print(multiple_source_list)
     if not(multiple_source_list):
+        print(Fore.YELLOW+ " it is a single source SO WE JUST FILTER THE TAB ON THE COLUMNS")
+        print(smx_dict.keys())
         smx_df=smx_dict[smx_tab]
+        print(smx_df)
+
+    print(Back.LIGHTRED_EX+ "----------------------------------------------------------------------------")
+    
 
     smx_col_list= [x.split(',') for x in smx_list]
+    print(Back.CYAN+ "smx_col_list")
+    print(smx_col_list)
     flattened_list = [element for sublist in smx_col_list for element in sublist]
+    print(flattened_list)
+    print(Back.LIGHTRED_EX+ "----------------------------------------------------------------------------")
     
+    #smx_list=flattened_list
+    print(smx_df)
+    print(smx_df.columns)
     smx_list=flattened_list
+    print(Back.LIGHTCYAN_EX+ "----------------------------------------------------------------------------")
 
-    params_list=[x.lower() for x in df['parameter']]
-    params_list=[x.split(',') for x in params_list]
-    params_list = flatten(params_list)  
-    df_with_empty_cols = smx_df.reindex(columns=params_list)
+    print(smx_list)
+    print(smx_df[smx_list])
 
-    for col in df_with_empty_cols.columns:
-        df_with_empty_cols[col] = df_with_empty_cols[col].fillna(col)
+    print(Back.LIGHTRED_EX+ "----------------------------------------------------------------------------")
+    '''
+    New section is here
+    we create the unique set of smx_list and use the dataframe
+    then we loop over the parameters and assign the values to the new columns
 
-    filtered_df = df[(df['presentation_col'] == "quoted") & (df['smx_column'].notna())]
+    '''
+    print(Back.YELLOW+ "*********************************************************************************")
 
-    quoted_cols= list(filtered_df['smx_column'])
-    quoted_cols=[x.lower() for x in quoted_cols ]
+    print(Fore.YELLOW+" &&&&&&&&&&&&&&&&&   we start here ")
+
+    smx_list_set = list(set(smx_list))
+    print(smx_list_set)
+    print(len(smx_list_set))
     
-    filtered_df = df[(df['presentation_col'] == "concatenate") & (df['smx_column'].notna())]
-    concatenated_cols= list(filtered_df['smx_column'])
+    print(Back.YELLOW+" smx_df ")
+    missing_cols = [col for col in smx_list_set if col not in smx_df.columns]
+    if missing_cols:
+        print(f"Missing columns in smx_df: {missing_cols}")
+        # Optionally, raise an error or handle gracefully
+        # raise KeyError(f"Columns {missing_cols} not in DataFrame")
+        # Or skip missing columns:
+        smx_list_set = [col for col in smx_list_set if col in smx_df.columns]
 
-    for c in quoted_cols:
-        df_with_empty_cols[c] = df_with_empty_cols[c].apply(lambda x: f'"{x}"')
+    smx_df = smx_df[smx_list_set]
+    print(smx_df.shape)
+    print(smx_df)
+
+    print(Back.YELLOW+" iterate over the df to see what to do ")
+    print(df[['parameter_name', 'source', 'parameter', 'smx_column', 'env_variable']])
+    print(df.columns)
+    final_df=pd.DataFrame()
+    n=smx_df.shape[0]
+    print(Fore.CYAN+f'printing n = {n}' )
+    #process_type=df['Process_type']
+    #check if there is a process type in the list of parameters
+    print(Fore.YELLOW+' hhhhhhhhhhhhhhhhhhhhhhh checking the parameter name for process')
+    process_type_row = df.loc[df['parameter_name'] == 'Process_Type']
+    print(process_type_row)
+    process_type_row=df.loc[df['parameter_name'].str.contains('Process_Type')]
+
+    print(Fore.YELLOW+f'{process_type_row}')
+    print(type(process_type_row))
     
-    if len(concatenated_cols) > 0:
-        col_name="Process_Name"
-        concatenates_cols_list = concatenated_cols[0].split(",")
-        cols_list= list(df_with_empty_cols.columns)
-        df_with_empty_cols[col_name] = df_with_empty_cols[concatenates_cols_list].astype(str).agg('_'.join, axis=1)
-        df_with_empty_cols[col_name]= "BK_" + df_with_empty_cols[col_name]
+    print(Fore.YELLOW+ f'checking the process type exists: {process_type_row}')
 
-        cols_list.insert(0, col_name)
-        df_with_empty_cols=df_with_empty_cols[cols_list]
-        df_with_empty_cols.drop(columns=concatenates_cols_list, inplace=True) 
+    process_type_str='null'
+    if not process_type_row.empty:
+        process_type=process_type_row['parameter']
+        print(process_type_row)
+        print(Fore.LIGHTRED_EX+ f'process_type : {process_type}')
+        print(Fore.LIGHTYELLOW_EX+ f'{process_type}')
+        print(type(process_type))
+        values_list = process_type.tolist()
+        process_type_str =values_list[0]
+        print(Fore.CYAN +f'{process_type_str}')
+    
+    for index, row in df.iterrows():
+        print(Fore.YELLOW+"------------------------ checking the rows attributes -------------------")
+        print(row)
+        print(row['prefix'])
+        print(row['parameter'])
+        '''
+        checking if the source is env or the smx document
+        if from env, we need to remove the quotes check if the value is a number or not so we put it as is or with quotes
+        '''
+        if row['source']=='env':
+            print(Fore.YELLOW+f'here in the env parameter')
+            print(row['parameter'])
+            my_string=row['parameter']
+            s=my_string.replace('"', '')
+            print(s.isdigit())
+            if s.isdigit():
+                #new_string = my_string.replace('"', '')
+                #print(new_string)
+                final_df[row['parameter_name']]=[s]*n
+            else:
+                final_df[row['parameter_name']]=[my_string]*n
+            print(row['parameter_name'])
+            print(final_df[row['parameter_name']])
+            col_values=[row['parameter']]*n
+            
+            #print(final_df)
 
-    return df_with_empty_cols
+        else:
+            smx_cols= row['parameter'].split(',')
+            print(Fore.CYAN+f'smx_cols: {smx_cols}')
+            smx_cols=[x.lower() for x in smx_cols]
+            print(smx_cols)
+            df_tmp=smx_df[smx_cols]
+            #print(df_tmp)
+            print(Fore.CYAN+ 'after printing df_tmp')
+            print(len(smx_cols))
+            #print(row['prefix'])
+            if len(smx_cols) > 1:
+                df_tmp['concatenation']= df_tmp[df_tmp.columns].astype(str).agg('_'.join, axis=1)
+                print(Fore.YELLOW+'concatenated values')
+                print(df_tmp['concatenation'])
+                print(Fore.CYAN+f'{process_type_str} and {len(process_type_str)}')
+                
+                df_tmp[row['parameter_name']]=df_tmp['concatenation'].values
+                #if '21' in process_type_str:
+                if key_type in ['BKEY_CALL', 'REG_BKEY_PROCESS']:
+                    print(Fore.YELLOW+'value of process type is 21')
+                    print(row['parameter_name'])
+                    print(df_tmp['concatenation'].values)
+                    la_liste=df_tmp['concatenation'].values
+                    la_liste=['BK_'+x for x in la_liste]
+                    print(la_liste)
+   
+            else:
+                print(df_tmp)
+                print(df_tmp.columns)
+                print(df_tmp[smx_cols[0]])
+                df_tmp[row['parameter_name']] = df_tmp[smx_cols[0]].values
 
-def get_bkey_domain_script(smx_model, filtered_script_df, env_attributes):
-    scripts=[]
-    script=" place holder "
-    df_by_function=filtered_script_df.groupby(['operation', 'schema','functions' ])
-    for group_name, df_group in df_by_function:
-        env_schema = df_group['schema'][0]
-        env_schema = env_attributes[df_group['schema'][0]]
-        df_group['schema']=env_schema
+            print(Fore.LIGHTMAGENTA_EX+ f'we need to apply the prefix if needed : {row['prefix']}')
 
-        df_group['parameter'] = df_group.apply(lambda row: str(env_attributes[row.parameter_name]) if  row.source=='env' else np.nan, axis=1)
-        smx_tab= df_group['source'].unique()
-        df_group['parameter'] = df_group.apply(lambda row: str(env_attributes[row.parameter_name]) if  row.source=='env' else row.smx_column, axis=1)
+            if pd.notna(row['prefix']): 
+                print(Fore.LIGHTMAGENTA_EX+ f'we need to apply the prefix {row['prefix']}')
+                la_liste=[f'{row['prefix']}_{x}' for x in df_tmp[row['parameter_name']]]
+                df_tmp[row['parameter_name']]=la_liste
+            if row['presentation_col']=='quoted':
+                  print(Fore.MAGENTA+ f'we need to apply the quoted  {row['presentation_col']}')
+                  df_tmp[row['parameter_name']]=df_tmp[row['parameter_name']].apply(lambda x: f"'{x}'")
+                  
 
-        df=df_group[['operation','schema' ,'functions']]
-        
-        parameters_string =tuple(list(df_group['parameter']))         
-        p_s= list(df_group['parameter'])
-        join_str = " , ".join(p_s)
-        
-        df = df.assign(function_parameters=join_str)
 
-        df=df.drop_duplicates()
 
-        df['schema_functions'] = df[['schema', 'functions']].agg('.'.join, axis=1)
-        df['operation_schema_functions'] = df[['operation','schema_functions']].agg(' '.join, axis=1)
-        
-        df= df.drop(['operation', 'schema', 'functions', 'schema_functions'], axis=1)
+            print(row['parameter_name'])
+            final_df[row['parameter_name']]=df_tmp[row['parameter_name']].values
+            
 
-        params_df = get_smx_values(smx_tab[0],list(df['function_parameters'])[0], smx_model)
-        df = pd.concat([df, params_df], ignore_index=True)
-        cols=params_df.columns
-        params_df['combined'] = params_df[cols].apply(lambda row: tuple(row.values.astype(str)), axis=1)
 
-        function = df['operation_schema_functions'].unique()
-        params_df['fn'] =function[0]
-        params_df=params_df[['fn', 'combined']]
-        params_df['combined']=params_df['combined'].apply(lambda row: str(tuple(row)))
-        params_df['script']=params_df['fn']+params_df['combined']
-        scripts.append(list(params_df['script']))
+    
+    print(final_df)
+    print(Fore.YELLOW+ f'printing final df type : {type(final_df)}')
+    script = final_df.values.tolist()
+    '''
+    with open('REG_BKEY_PROCESS_output.SQL', mode='wt', encoding='utf-8') as myfile:
+                for l in script:
+                    myfile.write('\n'.join(l))
+                    myfile.write('\n\n')
+    '''
+    print(Fore.YELLOW+" &&&&&&&&&&&&&&&&&   we end here ")
+    print(Back.YELLOW+ "*********************************************************************************")
+    '''
+    end of new section
+    '''
 
-    return scripts
+    
+    #return df_with_empty_cols
+    return final_df
 
-def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes):
+
+def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type):
     scripts=[]
     script=" place holder "
     
@@ -280,15 +404,16 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes):
         df['schema_functions'] = df[['schema', 'functions']].agg('.'.join, axis=1)
         df['operation_schema_functions'] = df[['operation','schema_functions']].agg(' '.join, axis=1)
         df= df.drop(['operation', 'schema', 'functions', 'schema_functions'], axis=1)
+        smx_tab_lst= list(smx_tab)
 
         if 'env' in list(smx_tab):
             smx_tab_lst.remove('env')
         
         smx_filtered_df = df[df['source'] != 'env']
         
-        source_params_df= df[['source', 'parameter', 'smx_column','env_variable','parameters','presentation_col','join_key']]
+        source_params_df= df[[ 'parameter_name', 'source', 'parameter', 'smx_column','env_variable','parameters','presentation_col','prefix', 'join_key']]
         
-        params_df = get_params_values(smx_tab_lst[0], source_params_df, smx_model)
+        params_df = get_params_values_better(smx_tab_lst[0], source_params_df, smx_model, key_type)
 
         cols=params_df.columns
 
@@ -315,12 +440,46 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes):
         scripts.append(list(fn_scripts))
 
     return scripts
+def smx_preprocess(smx_model, smx_tab, condition):
+    df = smx_model[smx_tab]
+    condition = ['PK', '==', 'Y']
+    c= " ".join(condition)
+    c= f'df[df[{condition[0]} {condition[1]} {condition[2]}]'
+    filtered_df = df[df[condition[0].lower()] == condition[2]]
+    smx_model[smx_tab]=filtered_df
+    return smx_model
+
+def get_core_script_dict(script, smx_model):
+        df = smx_model['core tables']
+        
+        list_tables=df['table name'].unique()
+        script_dict={}
+        script_dict = dict.fromkeys(list_tables, [])
+        flat_list = [item for sublist in script for item in sublist]
+
+        for s in flat_list:
+            sub_s=  s[s.index("("):s.index(")")+1]
+            sub_s.replace('"', '')
+
+            my_tuple = eval(sub_s)
+            ss=my_tuple[1]
+            for k in list_tables:
+                if k == ss:
+                    if script_dict[k] :
+                        items=[script_dict[k]]
+                        items.append(s)
+                        script_dict.update({k:items})
+                    else:
+                        script_dict.update({k: s})
+        return script_dict
+
+@st.cache_resource
+def load_cached_model():
+    script_file = "schema_functions_MAPPED_script.xlsx"
+    return load_syntax_model(script_file)
+
 
 def main(smx_model, key_type, env , bigint_flag):
-    @st.cache_resource
-    def load_cached_model():
-        script_file = "schema_functions_MAPPED_script.xlsx"
-        return load_syntax_model(script_file)
     syntax_model = load_cached_model()
     
     filtered_script_df=filter_key_type(syntax_model, key_type)
@@ -329,62 +488,43 @@ def main(smx_model, key_type, env , bigint_flag):
 
     match key_type:
         case "BKEY_CALL" : 
-            cols_list=['operation','schema','functions', 'parameters', 'parameter_name', 'source', 'smx_column'] 
-            script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes)
-
-            with open('BKEY_CALL_script_output.txt', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
+            script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
             
         case "REG_BKEY_PROCESS":
-            script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes)
-
-            with open('REG_BKEY_PROCESS_output.txt', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
+            script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
                     
         case "REG_BKEY_DOMAIN" :
-           script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes)
-        
-           with open('REG_BKEY_DOMAIN_script_output.txt', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
+           script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
 
         case "REG_BKEY" :
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes )
-            
-            with open('REG_KEY_script_output.txt', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
+           script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)            
 
         case "STREAM" :
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes )
-            
-            with open('REG_STREAM_script_output.txt', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
 
         case "REG_BMAP" :
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes )
-            
-            with open('REG_BMAP_script_output.txt', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
 
         case "REG_BMAP_DOMAIN" :
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes )
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
             
-            with open('REG_BMAP_DOMAIN_script_output.txt', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
+        case "EXEC_SRCI" :
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )          
 
+        case "CORE_KEY_COL_REG" :# STG tables".lower():
+            print("key type = ", key_type)
+            print(env_attributes)
+            smx_model= smx_preprocess(smx_model, 'core tables', f'PK==Y')
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
+
+            script_dict = get_core_script_dict(script, smx_model)
+            script2 = []
+            for table_name, value in script_dict.items():
+                sql = f"""SELECT * FROM GDEV1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
+            DELETE FROM GDEV1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
+            {value}"""
+                script2.append(sql)
+            script = script2
         case "bkey_views":
             script = Queries.generate_bkey_views(smx_model,env)
         case "Insert BMAP values":
@@ -399,6 +539,16 @@ def main(smx_model, key_type, env , bigint_flag):
             script = Queries.create_SCRI_view (smx_model, env)
         case"create_SCRI_input_view":
            script = Queries.create_SCRI_input_view (smx_model, env)
+        case"create_core_table":
+            script = Queries.create_core_table (smx_model, env)
+        case"create_core_table_view":
+            script = Queries.create_core_table_view (smx_model, env)
+
+#            # Get the current process
+#     process = psutil.Process(os.getpid())
+
+# # Get memory information for the process
+# # rss (Resident Set Size) is the non-swapped physical memory a process uses.
+#     mem_info = process.memory_info()
+#     print(f"Current process memory usage (RSS): {round(mem_info.rss / (1024**2), 2)} MB")
     return script
-
-

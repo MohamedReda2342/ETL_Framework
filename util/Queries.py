@@ -10,8 +10,6 @@ def generate_bkey_views(smx_model, env):
     stg_tables_df = stg_tables_df.dropna(subset=['key set name', 'key domain name'])
     # Generate views directly from filtered rows using 
     scripts = []    
-    print("-----stg_tables_df---------")
-    print(stg_tables_df)
     for _, row in stg_tables_df.iterrows():
         print (row['bkey filter'])
         view_script = Queries.bkey_views(
@@ -31,7 +29,6 @@ def bkey_views(key_set_name ,Domain_Name ,table_name_STG,natural_key,Column_Name
     process_name="BK_"+key_set_name+"_"+Domain_Name+"_"+table_name_STG+"_"+Column_Name_STG
     filter_condition =""
     if not math.isnan(BKEY_filter) :
-        print(BKEY_filter)
         filter_condition = f"AND {BKEY_filter}"
     return f"""
     REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR ACCESS 
@@ -43,26 +40,16 @@ def bkey_views(key_set_name ,Domain_Name ,table_name_STG,natural_key,Column_Name
 
 #---------------------------------------------------------
 def insert_bmap_values(smx_model, env):
-    
     # Get BMAP values dataframe from smx_model
     BMAP_values_df = smx_model['bmap values']
-    # Generate views using Queries.Insert_into_BMAP_Standard_Map_table method
+    # Generate views 
     scripts = []
     for _, row in BMAP_values_df.iterrows():
-        sql_script = Queries.Insert_into_BMAP_Standard_Map_table(
-            row['source code'],
-            row['code domain id'],
-            row['code set id'], 
-            row['edw code'],
-            row['description'],
-            env
-        )
+        sql_script = f"""INSERT INTO G{env}1T_UTLFW.BMAP_Standard_Map (Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description)
+    VALUES ({row['source code']}, {row['code domain id']}, {row['code set id']}, {row['edw code']}, {row['description']});"""
         scripts.append(sql_script)        
     return scripts
 
-def Insert_into_BMAP_Standard_Map_table(Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description , environment):
-    return f"""INSERT INTO G{environment}1T_UTLFW.BMAP_Standard_Map (Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description)
-    VALUES ({Source_Code}, {Domain_Id}, {Code_Set_Id}, {EDW_Code}, {Description});"""
 #---------------------------------------------------------
 """
 Table Name  in  CORE tables  === code set name  in  BMAP values 
@@ -228,15 +215,19 @@ def create_SCRI_view(smx_model,environment):
 
     return "\n\n".join(sql_scripts)
 
-def create_SCRI_input_view(smx_model,environment):
+def create_SCRI_input_view(smx_model, environment):
     stg_df = smx_model["stg tables"]
     bkey_df = smx_model["bkey"]
-    filterd_bkey_df = bkey_df.merge(stg_df,on=["key set name","key domain name"],how='inner')
+    
+    # Update column name - it's likely 'physical_table' instead of 'physical table'
+    filterd_bkey_df = bkey_df.merge(stg_df, on=["key set name", "key domain name"], how='inner')
     filterd_bkey_df = filterd_bkey_df.drop_duplicates(subset=['key set name', 'key domain name'])[
-    ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical table']]
+        ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical_table']  # Changed from 'physical table'
+    ]
 
+    # Rest of the function remains the same
     bmap_df = smx_model["bmap"]
-    filterd_bmap_df = bmap_df.merge(stg_df,on=["code set name","code domain name"],how='inner')
+    filterd_bmap_df = bmap_df.merge(stg_df, on=["code set name", "code domain name"], how='inner')
     filterd_bmap_df =filterd_bmap_df.drop_duplicates(subset=['code set name', 'code domain name'])[
         ['code set name', 'code domain name', 'code set id', 'code domain id']
     ]
@@ -267,7 +258,7 @@ def create_SCRI_input_view(smx_model,environment):
                 (filterd_bkey_df['key domain name'] == row['key domain name'])
             ]
             if not matched_row.empty:
-                physical_table = matched_row['physical table'].iloc[0]
+                physical_table = matched_row['physical_table'].iloc[0]  # Changed from 'physical table'
                 key_domain_id = matched_row['key domain id'].iloc[0]
 
             # get current column 
@@ -336,22 +327,54 @@ def create_SCRI_input_view(smx_model,environment):
 
 
 def create_core_table(smx_model, environment):
-    core_tables_df = smx_model["core tables"]
-    for
-    return f"""
-    CREATE MULTISET TABLE G{environment}1T_CORE.{table_name}
-(
-	{columns},
-	Start_Ts TIMESTAMP(6) WITH TIME ZONE,
-    End_Ts TIMESTAMP(6) WITH TIME ZONE,
-    Start_Date DATE FORMAT 'YYYY-MM-DD',,
-    End_Date DATE FORMAT 'YYYY-MM-DD',,
-    Record_Deleted_Flag BYTEINT,
-    Ctl_Id SMALLINT COMPRESS 997,
-    File_Id SMALLINT COMPRESS 997,
-    Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-    Process_Id INTEGER,
-    Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-    Update_Process_Id INTEGER
-)PRIMARY INDEX ({pk});
-"""
+    core_tables_df = smx_model["core tables"][['table name','column name','data type','pk']].dropna()
+    print (core_tables_df)
+    sql_scripts=[]
+    for table_name,group in core_tables_df.groupby('table name'):
+        columns = []
+        primary_key = None
+
+        for _, row in group.iterrows():
+            col_name = row['column name']
+            col_type = row['data type']
+            columns.append(f"{col_name} {col_type}")
+
+            is_pk = row['pk'].lower()
+            if is_pk == 'y':
+                primary_key = col_name
+
+            # Join all columns as string
+        column_definitions = ",\n        ".join(columns)
+
+        create_stmnt = f"""
+        CREATE MULTISET TABLE G{environment}1T_CORE.{table_name}
+    (
+        {column_definitions},
+        Start_Ts TIMESTAMP(6) WITH TIME ZONE,
+        End_Ts TIMESTAMP(6) WITH TIME ZONE,
+        Start_Date DATE FORMAT 'YYYY-MM-DD',,
+        End_Date DATE FORMAT 'YYYY-MM-DD',,
+        Record_Deleted_Flag BYTEINT,
+        Ctl_Id SMALLINT COMPRESS 997,
+        File_Id SMALLINT COMPRESS 997,
+        Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        Process_Id INTEGER,
+        Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        Update_Process_Id INTEGER
+    )PRIMARY INDEX ({primary_key});
+    """
+        sql_scripts.append(create_stmnt.strip())
+    return "\n\n".join(sql_scripts)
+
+def create_core_table_view(smx_model, environment):
+    core_tables_DF = smx_model['core tables'][['table name']].drop_duplicates()
+    core_tables = core_tables['table name'].tolist()
+
+    sql_scripts = []
+    for table_name in core_tables:
+        create_stmnt =f"""
+        REPLACE VIEW G{environment}1V_CORE.{table_name} AS LOCK ROW FOR ACCESS SELECT * FROM G{environment}1T_CORE.{table_name};
+        """
+        sql_scripts.append(create_stmnt.strip())
+    return "\n\n".join(sql_scripts)
+
