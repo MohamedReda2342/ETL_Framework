@@ -3,7 +3,7 @@ import streamlit as st
 import io  
 
 def load_sheet(file_content, sheet_name):
-    return pd.read_excel(io.BytesIO(file_content), sheet_name)
+    return pd.read_excel(io.BytesIO(file_content), sheet_name , na_values=[], keep_default_na=False) 
 
 def get_excel_sheet_names(file_content):
     return pd.ExcelFile(io.BytesIO(file_content)).sheet_names

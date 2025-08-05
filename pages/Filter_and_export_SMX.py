@@ -1,10 +1,9 @@
 import streamlit as st
 from streamlit_ace import st_ace
-
 import pandas as pd
 import io
-import os # Added import
-from generating_scripts import load_script_model, main
+import os 
+import generating_scripts
 from util import df_utlis
 from util import tab_operations
 from util import Queries
@@ -36,6 +35,8 @@ if uploaded_file is not None:
     # bmap_values_sheet = filtered_bmap_values_df
     bmap_sheet = df_utlis.load_sheet(file_content, "BMAP")
     core_tables_sheet = df_utlis.load_sheet(file_content, "CORE tables")
+    table_mapping_sheet = df_utlis.load_sheet(file_content, "Table mapping")
+    column_mapping_sheet = df_utlis.load_sheet(file_content, "Column mapping")
     
     excel_file_name = uploaded_file.name.split('.')[0] # Get Excel file name without file extension for exporting query to file
     col1, col2 , col3 = st.columns(3)    
@@ -156,6 +157,33 @@ if uploaded_file is not None:
 
     key_set_id = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Set ID'].iloc[0]
     Key_Domain_ID = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Domain ID'].iloc[0]
+# -----------------------------------------  Core tables  -------------------------------------------------------------------
+    selected_core_table , selected_mapping_name = st.columns(2)
+    with selected_core_table:
+        selected_core_table = st.selectbox(
+            "Select core table:", 
+            options = core_tables_sheet['Table Name'].unique(),
+            key="core_table_names",
+            disabled=(tab_name != "CORE tables")  # Disable when CORE tables tab is not selected
+        )
+    filtered_core_tables_df = core_tables_sheet[core_tables_sheet['Table Name'] == selected_core_table]
+
+    with selected_mapping_name:
+        selected_mapping_name = st.selectbox(
+        "Select mapping name:", 
+        options = table_mapping_sheet[table_mapping_sheet['Target table name'] == selected_core_table]['Mapping name'].unique(),
+        key="core_mapping_name",
+        disabled=(tab_name != "CORE tables")  # Disable when CORE tables tab is not selected
+    )
+
+    # filter table_mapping_sheet by selected_core_table
+    # Filter table mapping by selected core table and mapping name
+    filtered_table_mapping_df = table_mapping_sheet[
+        (table_mapping_sheet['Target table name'] == selected_core_table) & 
+        (table_mapping_sheet['Mapping name'] == selected_mapping_name)
+    ]
+    # filter column_mapping_sheet by selected_mapping_name
+    filtered_column_mapping_df = column_mapping_sheet[column_mapping_sheet['Mapping name'] == selected_mapping_name]
 
 #---------------------------------------    Display query editor and execute query    ---------------------------------------
     Dict = {
@@ -166,10 +194,12 @@ if uploaded_file is not None:
             "Stream" : Stream_sheet,
             "BMAP values" : filtered_bmap_values_df,
             "BMAP" : bmap_sheet,
-            "CORE tables": core_tables_sheet,
+            "CORE tables": filtered_core_tables_df,
+            "Table mapping": filtered_table_mapping_df,
+            "Column mapping": filtered_column_mapping_df,
         }
-    # st.write(filterd_STG_tables_df)
-    print("------Main---------")
+    
+    print("---------------------  Main  --------------------------")
     smx_model = {k.lower(): v for k, v in Dict.items()}
 
     # Process each DataFrame: lowercase
@@ -192,7 +222,7 @@ if uploaded_file is not None:
         st.session_state["generated_query"] = ""
     with gen_query_col:
         if st.button(f"Generate Query", key=f"Generate_Query_Bttn"):
-            script = main(smx_model, selected_action, selected_environment, bigint_flag)
+            script = generating_scripts.main(smx_model, selected_action, selected_environment, bigint_flag)
             
             # Format the script output
             if script and isinstance(script, list):

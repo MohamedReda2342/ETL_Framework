@@ -16,7 +16,7 @@ def get_action_options(tab_name):
     elif tab_name =="STG tables":
         return ["create_stg_table_and_view","create_SCRI_table" ,"create_SCRI_view","create_SCRI_input_view"]
     elif tab_name =="CORE tables":
-        return ["create_core_table","create_core_table_view","CORE_KEY_COL_REG"]
+        return ["create_core_table","create_core_table_view","CORE_KEY_COL_REG","create_core_input_view"]
 
 def get_stg_table_options (stg_df_sheet, selected_key_set):
     try:

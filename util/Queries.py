@@ -1,8 +1,10 @@
 import math
+from pandas.io.formats.style import Subset
 import streamlit as st
 from sqlalchemy import column, desc
 
-# -------------------------------------------------------------  Actions   -------------------------------------------------------------- 
+import pandas as pd
+# --------------------------------------------------------  Actions   -------------------------------------------------------------- 
 def generate_bkey_views(smx_model, env):
     # Extract and filter STG tables dataframe
     stg_tables_df = smx_model['stg tables']
@@ -377,4 +379,69 @@ def create_core_table_view(smx_model, environment):
         """
         sql_scripts.append(create_stmnt.strip())
     return "\n\n".join(sql_scripts)
+
+
+# Data will be passed filtered from UI  
+def create_core_input_view(smx_model,environment):
+    # Ecvlude lookups (tables without subject area)
+    core_tables_df = smx_model['core tables'].dropna(subset=['subject area','table name'])
+    # table_mapping_df and column_mapping_df  is already filtered from interface
+    table_mapping_df = smx_model['table mapping']
+    column_mapping_df = smx_model['column mapping']
+    # user has selected only one mapping_name & one target_table_name
+    target_table_name = table_mapping_df['target table name'].iloc[0]
+    mapping_name = table_mapping_df['mapping name'].iloc[0]
+    # selected maaping name always have 1 main source 
+    main_source = table_mapping_df["main source"].iloc[0]
+    mapped_to_table = column_mapping_df['mapped to table'].iloc[0]
+
+    cast_list=[]
+    for _, row in column_mapping_df.iterrows():
+        transformation_type = row['transformation type'].lower()  
+        mapped_to_column = row['mapped to column']   
+        column_name = row['column name']
+        print(f"Looking for: '{column_name}'")
+
+        print(core_tables_df[core_tables_df['column name'] == column_name]['data type'])
+        # get the data type of column name in column mapping from core table 
+        data_type = core_tables_df[core_tables_df['column name'] == column_name]['data type'].iloc[0]
+
+        if(transformation_type == 'copy'):
+            cast_list.append(f"CAST(A.{mapped_to_column} AS {data_type}) AS {column_name}")
+
+        elif(transformation_type=='sql'):
+            transformation_rule = row['transformation rule'].replace(mapped_to_column, f"A.{mapped_to_column}")
+            cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+        
+        elif(transformation_type=='const'):
+            transformation_rule = str(row['transformation rule'])
+            print("const")
+            if pd.isna(transformation_rule):
+                # If it's NaN, use NULL
+                transformation_rule = "NULL"
+            
+            print(f"sssssss     {transformation_rule}")
+            cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+
+    process_name = f"TX_{mapping_name}"
+    cast = ",\n  ".join(cast_list)
+
+    return f"""
+    REPLACE VIEW G{environment}1V_INP.TX_{mapping_name} AS LOCK ROW FOR ACCESS
+    SELECT DISTINCT
+    /* Target Table: 	{target_table_name} */
+    /* Table Mapping:	{mapping_name} */
+    /*Source Table:		{main_source} */
+	{cast},
+	(SELECT BUSINESS_DATE FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Start_Date,
+	DATE '9999-09-09' AS End_Date,
+	CASE WHEN PARTY.PARTY_ID IS NULL THEN 0 ELSE 1 END AS Record_Deleted_Flag,
+	(SELECT Ctl_Id FROM G{environment}1V_GCFR.GCFR_Process WHERE PROCESS_NAME='{process_name}') AS Ctl_Id,
+	'{process_name}' AS Process_Name,
+	(SELECT Process_ID FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Process_ID,
+	NULL AS update_Process_Name,
+	NULL AS update_Process_Id
+    
+    FROM G{environment}1V_SRCI.{mapped_to_table} A;
+"""
 
