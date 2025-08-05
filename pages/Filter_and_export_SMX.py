@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_ace import st_ace
+# from streamlit_ace import st_ace
 
 import pandas as pd
 import io

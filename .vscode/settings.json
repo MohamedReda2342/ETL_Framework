@@ -1,4 +1,5 @@
 {
+    "editor.lineNumbers": "relative",
     "python.terminal.activateEnvironment": true,
     "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe",
     "python.condaPath": "C:\\Users\\shaltoot\\anaconda3\\Scripts\\conda.exe"
