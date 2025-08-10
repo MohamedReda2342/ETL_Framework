@@ -6,7 +6,7 @@ import util.df_utlis as dfutils
 from util.auth import check_authentication
 import difflib
 # Check authentication - this must be the first Streamlit command
-authenticator = check_authentication()
+# authenticator = check_authentication()
 # Only authenticated users will see content below this point
 st.markdown(
     """<style>

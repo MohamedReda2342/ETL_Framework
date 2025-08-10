@@ -650,28 +650,28 @@ def get_core_script_dict(script, smx_model):
         df = smx_model['core tables']
         
         list_tables=df['table name'].unique()
-        #print(list_tables)
+        print(list_tables)
         script_dict={}
         script_dict = dict.fromkeys(list_tables, [])
-        #print(script_dict)
+        print(script_dict)
 
-        #print(script)
-        #print(Fore.YELLOW+f'{len(script)}')
+        print(script)
+        print(Fore.YELLOW+f'{len(script)}')
         flat_list = [item for sublist in script for item in sublist]
-        #print(flat_list)
-        #print(Fore.YELLOW+f'{len(flat_list)}')
+        print(flat_list)
+        print(Fore.YELLOW+f'{len(flat_list)}')
 
         for s in flat_list:
-            #print(Fore.LIGHTGREEN_EX+ s)
+            print(Fore.LIGHTGREEN_EX+ s)
             sub_s=  s[s.index("("):s.index(")")+1]
-            #print(Fore.YELLOW+sub_s)
+            print(Fore.YELLOW+sub_s)
             sub_s.replace('"', '')
-            #print(type(sub_s))
-            #print(Fore.MAGENTA+sub_s)
+            print(type(sub_s))
+            print(Fore.MAGENTA+sub_s)
             my_tuple = eval(sub_s)
-            #print(my_tuple)
-            #print(type(my_tuple))
-            #print(Fore.LIGHTRED_EX+'ss =  '+ my_tuple[1])
+            print(my_tuple)
+            print(type(my_tuple))
+            print(Fore.LIGHTRED_EX+'ss =  '+ my_tuple[1])
             ss=my_tuple[1]
             for k in list_tables:
                 #print(Fore.BLUE+" "*4+'k = '+f'{k}')

@@ -14,7 +14,7 @@ def generate_bkey_views(smx_model, env):
     scripts = []    
     for _, row in stg_tables_df.iterrows():
         print (row['bkey filter'])
-        view_script = Queries.bkey_views(
+        view_script = bkey_views(
             row['key set name'],
             row['key domain name'], 
             row['table name stg'],
@@ -30,8 +30,8 @@ def generate_bkey_views(smx_model, env):
 def bkey_views(key_set_name ,Domain_Name ,table_name_STG,natural_key,Column_Name_STG , BKEY_filter, environment):
     process_name="BK_"+key_set_name+"_"+Domain_Name+"_"+table_name_STG+"_"+Column_Name_STG
     filter_condition =""
-    if not math.isnan(BKEY_filter) :
-        filter_condition = f"AND {BKEY_filter}"
+    # if not math.isnan(BKEY_filter) :
+    filter_condition = f"AND {BKEY_filter}"
     return f"""
     REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR ACCESS 
     SELECT TRIM({natural_key}) AS SOURCE_KEY
@@ -151,7 +151,8 @@ def create_stg_table_and_view(smx_model, environment):
 
         REPLACE VIEW G{environment}1V_STG.{table_name_stg} AS LOCK ROW FOR ACCESS SELECT * FROM G{environment}1T_STG.{table_name_stg};
     """
-    sql_scripts.append(create_stmt.strip())
+        sql_scripts.append(create_stmt.strip())
+    print(sql_scripts)
 
     return "\n\n".join(sql_scripts)
 # ------------------------------------------------------------------------------------------------------

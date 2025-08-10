@@ -3,18 +3,14 @@ import streamlit as st
 import io  
 
 def load_sheet(file_content, sheet_name):
-    return pd.read_excel(io.BytesIO(file_content), sheet_name , na_values=[], keep_default_na=False) 
+    
+    df = pd.read_excel(io.BytesIO(file_content), sheet_name , na_values=[], keep_default_na=False) 
+    df.columns = df.columns.str.lower()
+    return df
+
 
 def get_excel_sheet_names(file_content):
     return pd.ExcelFile(io.BytesIO(file_content)).sheet_names
-
-
-def df_groupBy(df, col) :
-    d = (df.groupby([col])[df.columns]
-       .apply(lambda x: x.to_dict('records'))
-       .reset_index(name='attr'))
-    df_returned  =pd.DataFrame(d)
-    return df_returned
 
 def filter_by_column_value(df, column_name, values_to_filter):
     # Ensure values_to_filter is a list for consistent processing
@@ -25,10 +21,5 @@ def filter_by_column_value(df, column_name, values_to_filter):
 
     return df[df[column_name].isin(values_list)]
             
-# Get unique values from a dataframe column, removing NaN values.
-def get_unique_values(df, column_name):
-    if column_name in df.columns:
-        return df[column_name].dropna().unique().tolist()
-    return []
 
     

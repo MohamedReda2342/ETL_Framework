@@ -13,8 +13,8 @@ class CurrentEnv:
 
     self.BIGINT_Flag = str(bi_flag) 
 
-  #GDEV1T_GCFR	GCFR Standard Tables
-  #GDEV1V_GCFR	GCFR Standard Views
+    #GDEV1T_GCFR	GCFR Standard Tables
+    #GDEV1V_GCFR	GCFR Standard Views
 
     
     self.Key_Table_DB_Name= "G"+env+"1T_UTLFW"
@@ -77,6 +77,7 @@ class CurrentEnv:
     self.SRCI_Domain_Id =""
     self.SRCI_Code_Set_Id =""
 
-# Get the current date
+    # Get the current date
     self.Business_Date = date.today()
     self.Process_Type = 21
+

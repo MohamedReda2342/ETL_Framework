@@ -11,8 +11,7 @@ from datetime import datetime
 from util.auth import check_authentication
 
 # Authentication check - must be first command
-authenticator = check_authentication()
-
+# authenticator = check_authentication()
 
 # Move file uploader to sidebar
 with st.sidebar:
@@ -23,17 +22,20 @@ with st.sidebar:
     elif 'uploaded_file' in st.session_state:
         uploaded_file = st.session_state['uploaded_file']
     
-    authenticator.logout('Logout', 'sidebar')
+#     authenticator.logout('Logout', 'sidebar')
     
 # Process the file when uploaded
 if uploaded_file is not None:
     file_content = uploaded_file.getvalue()
     sheets_names = df_utlis.get_excel_sheet_names(file_content)
+
     bkey_sheet = df_utlis.load_sheet(file_content, "BKEY")
     stg_tables_sheet = df_utlis.load_sheet(file_content, "STG tables")
     Stream_sheet = df_utlis.load_sheet(file_content, "Stream")
     # bmap_values_sheet = filtered_bmap_values_df
     bmap_sheet = df_utlis.load_sheet(file_content, "BMAP")
+    bmap_values_sheet = df_utlis.load_sheet(file_content, "BMAP Values")
+
     core_tables_sheet = df_utlis.load_sheet(file_content, "CORE tables")
     table_mapping_sheet = df_utlis.load_sheet(file_content, "Table mapping")
     column_mapping_sheet = df_utlis.load_sheet(file_content, "Column mapping")
@@ -43,15 +45,16 @@ if uploaded_file is not None:
 
     with col1:
         selected_environment = st.selectbox(
-            "Select Environment :",
+            "Environment :",
             options=["TST", "DEV", "PROD"],
-            index=0,
+            index=None,  # No initial selection
+            placeholder="Choose an option..."  ,
             key="select_environment",
         )
     with col2:
         selected_tab = st.selectbox(
-            "Select key area :",
-            options=sheets_names,
+            "key area :",
+            options=tab_operations.get_key_type_options(),
             index=0,
             key="tab_selector",
         )
@@ -60,94 +63,116 @@ if uploaded_file is not None:
     # Action / Query
     with col3:
         selected_action = st.selectbox(
-            f"Select Key type:",
+            f"Key type:",
             options=tab_operations.get_action_options(tab_name),
-            key="action" 
+            key="Key type" 
         )
         
     col1, col2 , col3 = st.columns(3)    
     # Key Set Name
     with col1:
         Frequency = st.selectbox(
-            "Select Frequency",
+            "Frequency",
             options =["Daily", "weekly" , "Monthly"],
+            index=None,  # No initial selection
+            placeholder="Choose an option..."  ,
             key="Frequency" 
         )
        
-    # Data Type (INT or BIG INT)
     with col2:
         data_type = st.selectbox(
-            "Select INT Type:",
+            "INT Type:",
             options =["int", "BIG int"],
+            index=None,  # No initial selection
+            placeholder="Choose an option..."  ,
             key="data_type",
             # disabled=(tab_name != "BKEY")  
         )
 
     with col3:
-        key_set_names = bkey_sheet['Key Set Name'].dropna().unique().tolist()
+        # Get base options
+        all_key_set_names = bkey_sheet['key set name'].replace('', pd.NA).dropna().unique().tolist()
+        
         selected_key_set = st.selectbox( 
-        "Select Key Set Name:", 
-        options = key_set_names,
-        key="key_set_name",
-        disabled=(tab_name != "BKEY")  # Disable when BKEY tab is selected
-    )
-    filtered_key_set_names_DF = df_utlis.filter_by_column_value(bkey_sheet, 'Key Set Name', selected_key_set)
+            "Key Set Name (bkey sheet):", 
+            options = all_key_set_names,
+            index=None,  # No initial selection
+            placeholder="Choose an option..."  ,
+            key="key_set_name",
+            disabled=(selected_action not in
+              ["STREAM","BKEY_CALL","REG_BKEY","REG_BKEY_PROCESS","REG_BKEY_DOMAIN","bkey_views","create_SCRI_input_view"])  
+        )
+    # Filtered BKEY sheet By Key Set Name
+    filtered_key_set_names_DF = bkey_sheet[bkey_sheet['key set name'].isin([selected_key_set])] if selected_key_set else bkey_sheet
     # Filtered STG tables By Key Set Name
     tables_names , STG_tables_df = tab_operations.get_stg_table_options(stg_tables_sheet, selected_key_set)
-    # key domain name Column in ( STG Tables ) which is filtered already by key set name 
-    key_domain_names = df_utlis.get_unique_values(STG_tables_df, 'Key Domain Name')
 
+    key_domain_names = filtered_key_set_names_DF['key domain name'].dropna().unique().tolist()
+    
     multi_col1, multi_col2 = st.columns(2)
-
     # Key Domain Name 
     with multi_col1:
         selected_domains = st.multiselect(
-            "Select Key Domain :",
+            "Key Domain (bkey sheet):",
             options=key_domain_names,
             key="key_domain_name",
-            disabled=(tab_name != "BKEY")  
+        disabled=(selected_action not in
+          ["STREAM","BKEY_CALL","REG_BKEY","REG_BKEY_PROCESS","REG_BKEY_DOMAIN","bkey_views","create_SCRI_input_view"])  
         )
     # filtered bkey df based on key set name && key domain name
-    filtered_bkey_df = df_utlis.filter_by_column_value(filtered_key_set_names_DF, 'Key Domain Name', selected_domains)
+    filtered_bkey_df = filtered_key_set_names_DF[filtered_key_set_names_DF['key domain name'].isin(selected_domains)] if selected_domains else filtered_key_set_names_DF
+
     # STG Tables 
     with multi_col2:
+        # Get all STG table options
+        all_stg_tables = stg_tables_sheet['table name source'].dropna().unique().tolist()
+        # Filter STG tables based on selected key set
+        if selected_key_set:
+            stg_table_options = stg_tables_sheet[stg_tables_sheet['key set name'] == selected_key_set]['table name source'].dropna().unique().tolist()
+        else:
+            stg_table_options = all_stg_tables
+
         selected_tables = st.multiselect(
-            "Select Table :",
-            options= tables_names,
+            "STG table :",
+            options=stg_table_options,
             key="stg_tables",
-            disabled=(tab_name == "BMAP") 
+            disabled=(selected_action not in ["STREAM","BKEY_CALL","bkey_views","REG_BKEY_PROCESS","create_stg_table_and_view","EXEC_SRCI","create_SCRI_table",
+            "create_SCRI_view","create_SCRI_input_view"])
         )
-        filterd_STG_tables_df = df_utlis.filter_by_column_value(STG_tables_df, 'Table Name Source', selected_tables)
-    print(selected_tables)
+
+    # Filter STG tables dataframe
+    filterd_STG_tables_df = stg_tables_sheet[stg_tables_sheet['table name source'].isin(selected_tables)] if selected_tables else stg_tables_sheet
+
+    st.write(filterd_STG_tables_df)
+    
     multi_coll1, multi_coll2 = st.columns(2)
     # Get BMAP dataframe
-    BMAP_df = df_utlis.load_sheet(file_content, "BMAP Values")
     # Create columns for selections
     with multi_coll1:
-        # Show unique values from BMAP_df for selection
+        # Show unique values from bmap_sheet for selection
         selected_code_set_names = st.multiselect(
             "Select Code Set Name:",
-            options=BMAP_df['Code Set Name'].unique(),
+            options=bmap_sheet['code set name'].unique(),
             key="code_set_names",
-            disabled=(tab_name == "BKEY")
+            disabled=(selected_action not in ["REG_BMAP","REG_BMAP_DOMAIN","Insert BMAP values","Create LKP views"])
         )
         
     with multi_coll2:
         selected_code_domain_names = st.multiselect(
             "Select Code Domain Name:",
-            options=BMAP_df['Code Domain Name'].unique(),
+            options=bmap_sheet['code domain name'].unique(),
             key="code_domain_names",
-            disabled=(tab_name == "BKEY")
+            disabled=(selected_action not in ["REG_BMAP","REG_BMAP_DOMAIN","Insert BMAP values","Create LKP views"])
         )
     filtered_bmap_values_df=[]
     # Filter and display selected rows
-    filtered_bmap_values_df = BMAP_df.copy()
+    filtered_bmap_values_df = bmap_sheet.copy()
 
     if selected_code_set_names:
-        filtered_bmap_values_df = filtered_bmap_values_df[filtered_bmap_values_df['Code Set Name'].isin(selected_code_set_names)]
+        filtered_bmap_values_df = filtered_bmap_values_df[filtered_bmap_values_df['code set name'].isin(selected_code_set_names)]
 
     if selected_code_domain_names:
-        filtered_bmap_values_df = filtered_bmap_values_df[filtered_bmap_values_df['Code Domain Name'].isin(selected_code_domain_names)]
+        filtered_bmap_values_df = filtered_bmap_values_df[filtered_bmap_values_df['code domain name'].isin(selected_code_domain_names)]
 
 #----------------------------------------   Process Selected Action  -------------------------------------------------------
     if data_type == "int":
@@ -155,64 +180,56 @@ if uploaded_file is not None:
     elif data_type == "BIG int":
         bigint_flag = "1"
 
-    key_set_id = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Set ID'].iloc[0]
-    Key_Domain_ID = bkey_sheet[bkey_sheet['Key Set Name'] == selected_key_set]['Key Domain ID'].iloc[0]
+    key_set_id = bkey_sheet[bkey_sheet['key set name'] == selected_key_set]['key set id'].iloc[0] if selected_key_set else None
+    Key_Domain_ID = bkey_sheet[bkey_sheet['key set name'] == selected_key_set]['key domain id'].iloc[0] if selected_key_set else None
 # -----------------------------------------  Core tables  -------------------------------------------------------------------
     selected_core_table , selected_mapping_name = st.columns(2)
     with selected_core_table:
         selected_core_table = st.selectbox(
             "Select core table:", 
-            options = core_tables_sheet['Table Name'].unique(),
+            options = core_tables_sheet['table name'].unique(),
+            index=None,  # No initial selection
+            placeholder="Choose an option..."  ,
             key="core_table_names",
-            disabled=(tab_name != "CORE tables")  # Disable when CORE tables tab is not selected
+            disabled=(tab_name != "core tables")  # Disable when CORE tables tab is not selected
         )
-    filtered_core_tables_df = core_tables_sheet[core_tables_sheet['Table Name'] == selected_core_table]
+    filtered_core_tables_df = core_tables_sheet[core_tables_sheet['table name'] == selected_core_table]
 
     with selected_mapping_name:
         selected_mapping_name = st.selectbox(
         "Select mapping name:", 
-        options = table_mapping_sheet[table_mapping_sheet['Target table name'] == selected_core_table]['Mapping name'].unique(),
+        options = table_mapping_sheet[table_mapping_sheet['target table name'] == selected_core_table]['mapping name'].unique(),
+        index=None,  # No initial selection
+        placeholder="Choose an option..."  ,
         key="core_mapping_name",
-        disabled=(tab_name != "CORE tables")  # Disable when CORE tables tab is not selected
+        disabled=(tab_name != "core tables")  # Disable when CORE tables tab is not selected
     )
 
-    # filter table_mapping_sheet by selected_core_table
     # Filter table mapping by selected core table and mapping name
     filtered_table_mapping_df = table_mapping_sheet[
-        (table_mapping_sheet['Target table name'] == selected_core_table) & 
-        (table_mapping_sheet['Mapping name'] == selected_mapping_name)
+        (table_mapping_sheet['target table name'] == selected_core_table) & 
+        (table_mapping_sheet['mapping name'] == selected_mapping_name)
     ]
     # filter column_mapping_sheet by selected_mapping_name
-    filtered_column_mapping_df = column_mapping_sheet[column_mapping_sheet['Mapping name'] == selected_mapping_name]
+    filtered_column_mapping_df = column_mapping_sheet[column_mapping_sheet['mapping name'] == selected_mapping_name]
 
 #---------------------------------------    Display query editor and execute query    ---------------------------------------
     Dict = {
-            # "BKEY" : filtered_bkey_df,
-            "BKEY":bkey_sheet,
-            # "STG tables" : filterd_STG_tables_df,
-            "STG tables" :stg_tables_sheet,
-            "Stream" : Stream_sheet,
-            "BMAP values" : filtered_bmap_values_df,
-            "BMAP" : bmap_sheet,
-            "CORE tables": filtered_core_tables_df,
-            "Table mapping": filtered_table_mapping_df,
-            "Column mapping": filtered_column_mapping_df,
+            "bkey":filtered_bkey_df,
+            "stg tables" :filterd_STG_tables_df,
+            "stream" : Stream_sheet,
+            "bmap values" : filtered_bmap_values_df,
+            "bmap" : bmap_sheet,
+            "core tables": filtered_core_tables_df,
+            "table mapping": filtered_table_mapping_df,
+            "column mapping": filtered_column_mapping_df,
         }
-    
     print("---------------------  Main  --------------------------")
     smx_model = {k.lower(): v for k, v in Dict.items()}
 
     # Process each DataFrame: lowercase
     for key in smx_model:
         smx_model[key].columns = [col.lower() for col in smx_model[key].columns]
-   
-    stg_df = smx_model["stg tables"]
-    bkey_df = smx_model["bkey"]
-    filterd_bkey_df = bkey_df.merge(stg_df,on=["key set name","key domain name"],how='inner')
-    filterd_bkey_df = filterd_bkey_df.drop_duplicates(subset=['key set name', 'key domain name'])[
-    ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical_table']]
-    st.write(filterd_bkey_df)
-
 
     # At the top of your script logic, after the button columns
     gen_query_col, export_query_col, exec_query_col = st.columns(3) 
@@ -238,7 +255,6 @@ if uploaded_file is not None:
                 
             st.session_state["generated_query"] = query_for_editor
             st.rerun()  # Refresh to show the updated content
-
 
     current_query_in_editor = st.text_area(
         "Query:",
@@ -291,7 +307,7 @@ if uploaded_file is not None:
             if not current_query_in_editor.strip():
                 st.error("No query to execute. Please generate a query first.")
             else:
-                # Ensure current_query_in_editor reflects the latest from session_state before executing
+                # Ensure current_query_in_editor reflects the latest from the session_state before executing
                 query_to_execute = current_query_in_editor
                 st.success(f"Executed: {query_to_execute}")
 #------------------------------------------------------------------------------------------------------------------------------
