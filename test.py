@@ -1,28 +1,26 @@
 import pandas as pd
 
-# ==== Set your file path here ====
-file_path = r"schema_functions_MAPPED_script.xlsx"
-# =================================
+# Your dataframe
+data = {
+    'System Id': [1, 1, 1, 1, 1],
+    'System Name': ['CB', 'CB', 'CB', 'CB', 'CB'],
+    'Stream Key': [1, 2, 3, 4, 5],
+    'Stream Name': ['CB_STG', 'CB_BKEY', 'CB_BMAP', 'CB_SRCI', 'CB_CORE'],
+    'Loading Frequency': [1, 1, 1, 1, 1]
+}
 
-# Read sheets
-functions_df = pd.read_excel(file_path, sheet_name="FUNCTIONS")
-parameters_df = pd.read_excel(file_path, sheet_name="PARAMETERS")
-unique_params_df = pd.read_excel(file_path, sheet_name="UNIQUE_PARAMETERS")
+df = pd.DataFrame(data)
 
-# Merge FUNCTIONS with PARAMETERS
-merged_df = functions_df.merge(parameters_df, on="function_code", how="left")
+# Your input string
+input_string = "This is a BKEY example"  # or whatever string you have
 
-# Merge with UNIQUE_PARAMETERS
-final_df = merged_df.merge(unique_params_df, left_on="parameters", right_on="parameter_name", how="left")
+# Extract substrings after underscore
+substrings = df['Stream Name'].str.split('_').str[1]
 
-# Keep only needed columns
-result_df = final_df[["KEY_TYPE", "function_code", "parameters", "source"]]
-result_df = result_df[result_df['source'] != 'env']
+# Check which substrings are contained in your input string
+mask = substrings.str.lower().apply(lambda x: x.lower() in input_string.lower())
 
-# Group by KEY_TYPE and aggregate sources into a list
-result_df = result_df.groupby(['source', 'parameters']).agg(list).unique().reset_index()
-# Save to Excel with grouped data
-output_file = "lookup_result2.xlsx"
-result_df.to_excel(output_file, index=False)
+# Filter the dataframe
+filtered_df = df[mask]
 
-print(f"✅ Lookup table saved to {result_df}")
+print(filtered_df)

@@ -17,7 +17,9 @@ import psutil
 from util import Queries
 
 
-
+def load_script_model():
+    obj = pd.read_pickle(r'pickled_df/bkey_functions.pkl')
+    return obj
 
 def create_template(filename, key_type):
     functions_DF = pd.read_excel(filename,'FUNCTIONS')
@@ -73,7 +75,7 @@ def filter_key_type(script_dict, key_type):
     return df_filtered2
 
 def get_env_dict(env, bi_flag):
-    envvar = CurrentEnv(env, bi_flag=1 )
+    envvar = CurrentEnv(env, bi_flag )
     env_attributes = {
         k: v
         for k, v in vars(envvar).items()
@@ -111,6 +113,34 @@ def join_columns(smx_tabs, df,smx_dict, key_type):
         df3=smx_dict['stream']
         filtered_df=df3[df3['stream name'].str.contains(search_string)]
         the_joined_smx_tabs = pd.merge(df2, filtered_df, left_on='source system alias', right_on='system name', how='left')
+    elif key_type=='REG_CORE_PROCESS':
+        print(Fore.LIGHTRED_EX+"*****************************************  **************************************")
+        search_string='_CORE'
+        df1=smx_dict['table mapping']
+        print(df1.columns)
+        print(df1['historization algorithm'])
+        hist_algo =  df1['historization algorithm']
+        hist_algo_dict = {'INSERT': [25,1] ,  'UPSERT': [23,0], 'HISTORY': [29,0]}
+        hist_algo = list(map(lambda x: hist_algo_dict[x][0] , list(df1['historization algorithm'])))
+        #hist_algo = list(map(lambda x: hist_algo_dict[x] , list(df1['historization algorithm'])))
+        print(hist_algo)
+        #df1['historization algorithm']=hist_algo
+        df1['core process type'] = hist_algo
+        #df Verification_Flag = 1
+        hist_algo = list(map(lambda x: hist_algo_dict[x][1] , list(df1['historization algorithm'])))
+        df1['verification flag'] = hist_algo
+
+        df2=smx_dict['stg tables']
+        df3=smx_dict['stream']
+        print(df3)
+        df3_strings= df3.astype(str)
+        print(df3_strings)
+        filtered_df=df3[df3['stream name'].str.contains(search_string)]
+        print(filtered_df)
+        filtered_df= filtered_df.astype(str)
+        df1_df2_merged= pd.merge(df1, df2, left_on='main source', right_on='table name stg', how='left')
+        print(df1_df2_merged)
+        the_joined_smx_tabs = pd.merge(df1_df2_merged, filtered_df, left_on='source system alias', right_on='system name', how='left')
     else:
        the_joined_smx_tabs= join_bkey_stg_stream(smx_tabs, df,smx_dict)
     return the_joined_smx_tabs
@@ -122,16 +152,19 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
     flattened_list = [item for sublist in ll2 for item in sublist]
     multiple_source_list = [x for x in smx_source_list if len(x) > 1] 
     import itertools
-    if multiple_source_list:
+    smx_df=pd.DataFrame()
+    if len(multiple_source_list)>0:
+
         multiple_source_list = list(itertools.chain(*multiple_source_list))
-        smx_tabs=multiple_source_list
-    else:   
+
+        smx_tabs=multiple_source_list 
+        smx_df=join_columns(smx_tabs, df, smx_dict, key_type)
+    else: 
         smx_tabs=flattened_list
 
     smx_list = [x.lower() for x in smx_lst if pd.notnull(x)]
     smx_tabs_df=[]
-    smx_df=pd.DataFrame()
-    smx_df=join_columns(smx_tabs, df, smx_dict, key_type)
+
 
     if not(multiple_source_list):
         smx_df=smx_dict[smx_tab]
@@ -141,6 +174,8 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
     flattened_list = [element for sublist in smx_col_list for element in sublist]
     smx_list=flattened_list
     smx_list_set = list(set(smx_list))
+    smx_df=smx_df[smx_list_set]
+
     missing_cols = [col for col in smx_list_set if col not in smx_df.columns]
     if missing_cols:
 
@@ -192,7 +227,7 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
                 la_liste=[f'{row['prefix']}_{x}' for x in df_tmp[row['parameter_name']]]
                 df_tmp[row['parameter_name']]=la_liste
             if row['presentation_col']=='quoted':
-                  df_tmp[row['parameter_name']]=df_tmp[row['parameter_name']].apply(lambda x: f"'{x}'")
+                  df_tmp[row['parameter_name']]=df_tmp[row['parameter_name']].apply(lambda x: '"{}"'.format(x))
                   
             final_df[row['parameter_name']]=df_tmp[row['parameter_name']].values
 
@@ -262,41 +297,52 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
     return scripts
 def smx_preprocess(smx_model, smx_tab, condition):
     df = smx_model[smx_tab]
-    condition = ['PK', '==', 'Y']
-    c= " ".join(condition)
-    c= f'df[df[{condition[0]} {condition[1]} {condition[2]}]'
-    filtered_df = df[df[condition[0].lower()] == condition[2]]
-    smx_model[smx_tab]=filtered_df
+    c = f"df[df{condition}]"
+    result = eval(c)
+
+    smx_model[smx_tab]=result
     return smx_model
+  
 
 def get_core_script_dict(script, smx_model):
-        df = smx_model['core tables']
-        
-        list_tables=df['table name'].unique()
-        script_dict={}
-        script_dict = dict.fromkeys(list_tables, [])
-        flat_list = [item for sublist in script for item in sublist]
+    df = smx_model['core tables']
+    
+    list_tables=df['table name'].unique()
+    script_dict={}
+    script_dict = dict.fromkeys(list_tables, [])
+    flat_list = [item for sublist in script for item in sublist]
 
-        for s in flat_list:
-            sub_s=  s[s.index("("):s.index(")")+1]
-            sub_s.replace('"', '')
+    for s in flat_list:
+        sub_s=  s[s.index("("):s.index(")")+1]
+        sub_s.replace('"', '')
 
-            my_tuple = eval(sub_s)
-            print(f"Tuple value: {my_tuple}")
-            ss=my_tuple[1]
-            for k in list_tables:
-                if k == ss:
+        my_tuple = eval(sub_s)
+
+        ss=my_tuple[1]
+        for k in list_tables:
+
+            if k == ss:
+
+                 if k == ss:
                     if script_dict[k] :
-                        items=[script_dict[k]]
-                        items.append(s)
+                        if isinstance(script_dict[k], list):
+                            items2=script_dict[k]
+                        else:
+                            items2=[script_dict[k]]
+
+                        items2.append(s)
+                        items=items2
                         script_dict.update({k:items})
+
                     else:
                         script_dict.update({k: s})
-        return script_dict
+    return script_dict
+
+
 
 @st.cache_resource
 def load_cached_model():
-    script_file = "schema_functions_MAPPED_script.xlsx"
+    script_file = "schema_functions_MAPPED_script_V_7_1.xlsx"
     return load_syntax_model(script_file)
 
 
@@ -309,7 +355,8 @@ def main(smx_model, key_type, env , bigint_flag):
 
     match key_type:
         case "BKEY_CALL" : 
-            script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
+             cols_list=['operation','schema','functions', 'parameters', 'parameter_name', 'source', 'smx_column'] 
+             script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
             
         case "REG_BKEY_PROCESS":
             script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
@@ -318,8 +365,7 @@ def main(smx_model, key_type, env , bigint_flag):
            script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
 
         case "REG_BKEY" :
-           script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)            
-
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes , key_type)        
         case "STREAM" :
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
 
@@ -329,36 +375,42 @@ def main(smx_model, key_type, env , bigint_flag):
         case "REG_BMAP_DOMAIN" :
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
             
-        case "EXEC_SRCI" :
+        case "EXEC_SRCI" :# STG tables".lower():
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )          
 
-        case "CORE_KEY_COL_REG" :
-            smx_model = smx_preprocess(smx_model, 'core tables', f'PK==Y')
-            script = get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
+        case "CORE_KEY_COL_REG" :# STG tables".lower():
+            condition = "['pk'] == 'Y'"
+            smx_model= smx_preprocess(smx_model, 'core tables', condition)
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
+            script_dict= get_core_script_dict(script, smx_model)
 
-            script_dict = get_core_script_dict(script, smx_model)
-            script2 = []
-            for table_name, value in script_dict.items():
-                base_sql = f"""SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
-            DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';"""
-
-                flattened = []
-
-                for item in value:
-                    if isinstance(item, list):
-                        for subitem in item:
-                            # print(subitem)
-                            flattened.append(subitem)
-                    else:
-                        flattened.append(item)
-                    
-                    value_str = '\n'.join(flattened)
-                    print(value_str)
-                    sql = f"{base_sql}\n{value_str}"
+            script2 = ''' '''  # Initialize with triple quotes for multiline string
+            for table_name, values in script_dict.items():
+                print(table_name)
+                print(values)
+                stmnt = f"""
+    SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
+    DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
+                    """
+                if isinstance(values, list):
+                    script2 += stmnt
+                    # Then append all values
+                    for value in values:
+                        script2 += value + '\n'
                 else:
-                    sql = f"{base_sql}\n{value}"
-                script2.append(sql)
-            script = script2
+                    script2 += stmnt
+                    # Then append the single value
+                    script2 += values + '\n'
+            return script2  # Return the combined script
+        case "REG_CORE_PROCESS" :
+                    script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
+
+        case "HIST_REG" :# STG tables".lower():
+            
+            condition= "['historization key'].notnull()"
+            smx_model= smx_preprocess(smx_model, 'core tables', condition)
+           
+            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
         case "bkey_views":
             script = Queries.generate_bkey_views(smx_model,env)
         case "Insert BMAP values":

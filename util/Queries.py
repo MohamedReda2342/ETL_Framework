@@ -7,38 +7,40 @@ import pandas as pd
 # --------------------------------------------------------  Actions   -------------------------------------------------------------- 
 def generate_bkey_views(smx_model, env):
     # Extract and filter STG tables dataframe
-    stg_tables_df = smx_model['stg tables']
-    # Removing Nulls
-    stg_tables_df = stg_tables_df.dropna(subset=['key set name', 'key domain name'])
+    stg_tables_df = smx_model['stg tables']  # this DF has no nulls in key set name and key domain name
+
     # Generate views directly from filtered rows using 
     scripts = []    
     for _, row in stg_tables_df.iterrows():
-        print (row['bkey filter'])
-        view_script = bkey_views(
-            row['key set name'],
-            row['key domain name'], 
-            row['table name stg'],
-            row['natural key'],
-            row['column name stg'],
-            row['bkey filter'],
-            env 
-        )
+        key_set_name = row['key set name']
+        Domain_Name = row['key domain name']
+        table_name_STG = row['table name stg']
+        natural_key = row['natural key']
+        Column_Name_STG = row['column name stg']
+        BKEY_filter = row['bkey filter']
+        BKEY_join = row['bkey join']
+
+        environment = env 
+        print("filter",BKEY_filter)
+        process_name="BK_"+key_set_name+"_"+Domain_Name+"_"+table_name_STG+"_"+Column_Name_STG
+        filter_condition =""
+        if len(BKEY_filter.strip()) > 0 :
+            print("filter",BKEY_filter)
+            filter_condition = f"AND {BKEY_filter}"
+        if len(BKEY_join.strip()) > 0 :
+            BKEY_join = f"\n {BKEY_join}"
+
+        view_script =f"""
+        REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR ACCESS 
+        SELECT TRIM({natural_key}) AS SOURCE_KEY
+        FROM G{environment}1V_STG.{table_name_STG} A {BKEY_join}
+        WHERE A.{natural_key} IS NOT NULL AND A.{natural_key} <> '' {filter_condition}
+        GROUP BY 1;
+        """
+        print(view_script)
         scripts.append(view_script)
         
     return scripts
-
-def bkey_views(key_set_name ,Domain_Name ,table_name_STG,natural_key,Column_Name_STG , BKEY_filter, environment):
-    process_name="BK_"+key_set_name+"_"+Domain_Name+"_"+table_name_STG+"_"+Column_Name_STG
-    filter_condition =""
-    # if not math.isnan(BKEY_filter) :
-    filter_condition = f"AND {BKEY_filter}"
-    return f"""
-    REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR ACCESS 
-    SELECT TRIM({natural_key}) AS SOURCE_KEY
-    FROM G{environment}1V_STG.{table_name_STG}
-    WHERE {natural_key} IS NOT NULL AND {natural_key} <> '' {filter_condition}
-    GROUP BY 1;
-    """
 
 #---------------------------------------------------------
 def insert_bmap_values(smx_model, env):
@@ -47,8 +49,8 @@ def insert_bmap_values(smx_model, env):
     # Generate views 
     scripts = []
     for _, row in BMAP_values_df.iterrows():
-        sql_script = f"""INSERT INTO G{env}1T_UTLFW.BMAP_Standard_Map (Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description)
-    VALUES ({row['source code']}, {row['code domain id']}, {row['code set id']}, {row['edw code']}, {row['description']});"""
+        sql_script = f"""INSERT INTO G{env}1T_UTLFW.BMAP_Standard_Map (Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description, Start_Date, End_Date,Record_Deleted_Flag,Ctl_Id , PROCESS_NAME, PROCESS_ID, UPDATE_PROCESS_NAME, UPDATE_PROCESS_ID)
+    VALUES ({row['source code']}, {row['code domain id']}, {row['code set id']}, {row['edw code']}, {row['description']},CURRENT_DATE, DATE '9999-09-09',0,0,'BM_GENDER_TYPE',0,NULL,NULL);"""
         scripts.append(sql_script)        
     return scripts
 
@@ -66,7 +68,7 @@ def create_LKP_views (smx_model, env):
     # Get BMAP values dataframe from smx_model
     BMAP_values_df = smx_model['bmap values']
     core_tables_df = smx_model['core tables'] 
-    # BMAP_values_df = BMAP_values_df.rename(columns={'code set name': 'table name'})
+
     # Filter core tables to only include those with matching code set names == table name
     filtered_core_tables = BMAP_values_df.merge(core_tables_df, how='inner', left_on="code set name", right_on="table name")
     filtered_core_tables = (
@@ -134,20 +136,20 @@ def create_stg_table_and_view(smx_model, environment):
             DEFAULT MERGEBLOCKRATIO,
             MAP = TD_MAP1
         (
-            {column_definitions}
-            Start_Ts TIMESTAMP(6) WITH TIME ZONE,
-            End_Ts TIMESTAMP(6) WITH TIME ZONE,
-            Start_Date DATE,
-            End_Date DATE,
-            Record_Deleted_Flag BYTEINT,
-            Ctl_Id SMALLINT COMPRESS 997,
-            File_Id SMALLINT COMPRESS 997,
-            Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-            Process_Id INTEGER,
-            Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-            Update_Process_Id INTEGER
+            {column_definitions},
+        Start_Ts TIMESTAMP(6) WITH TIME ZONE,
+        End_Ts TIMESTAMP(6) WITH TIME ZONE,
+        Start_Date DATE,
+        End_Date DATE,
+        Record_Deleted_Flag BYTEINT,
+        Ctl_Id SMALLINT COMPRESS 997,
+        File_Id SMALLINT COMPRESS 997,
+        Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        Process_Id INTEGER,
+        Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        Update_Process_Id INTEGER
         )
-        UNIQUE PRIMARY INDEX ({primary_key});
+        PRIMARY INDEX ({primary_key});
 
         REPLACE VIEW G{environment}1V_STG.{table_name_stg} AS LOCK ROW FOR ACCESS SELECT * FROM G{environment}1T_STG.{table_name_stg};
     """
@@ -176,7 +178,7 @@ def create_SCRI_table(smx_model, environment):
             col_type = row['stg data type']
             is_pk = row['pk'].lower()
             columns.append(f"{col_name} {col_type}")
-         
+
             if is_pk == 'y':
                 primary_key = col_name
 
@@ -188,17 +190,17 @@ def create_SCRI_table(smx_model, environment):
         CREATE MULTISET TABLE G{environment}1T_SRCI.{table_name_stg}
         (
                 {column_definitions},
-                Start_Ts TIMESTAMP(6) WITH TIME ZONE,
-                End_Ts TIMESTAMP(6) WITH TIME ZONE,
-                Start_Date DATE FORMAT 'YYYY-MM-DD',
-                End_Date DATE FORMAT 'YYYY-MM-DD',
-                Record_Deleted_Flag BYTEINT,
-                Ctl_Id SMALLINT COMPRESS(997),
-                File_Id SMALLINT COMPRESS(997),
-                Process_Name VARCHAR(128),
-                Process_Id INTEGER,
-                Update_Process_Name VARCHAR(128),
-                Update_Process_Id INTEGER
+            Start_Ts TIMESTAMP(6) WITH TIME ZONE,
+            End_Ts TIMESTAMP(6) WITH TIME ZONE,
+            Start_Date DATE FORMAT 'YYYY-MM-DD',
+            End_Date DATE FORMAT 'YYYY-MM-DD',
+            Record_Deleted_Flag BYTEINT,
+            Ctl_Id SMALLINT COMPRESS(997),
+            File_Id SMALLINT COMPRESS(997),
+            Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+            Process_Id INTEGER,
+            Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+            Update_Process_Id INTEGER
         ) PRIMARY INDEX({primary_key});
         """
         sql_scripts.append(create_stmt.strip())
@@ -221,14 +223,13 @@ def create_SCRI_view(smx_model,environment):
 def create_SCRI_input_view(smx_model, environment):
     stg_df = smx_model["stg tables"]
     bkey_df = smx_model["bkey"]
-    
-    # Update column name - it's likely 'physical_table' instead of 'physical table'
+
+
     filterd_bkey_df = bkey_df.merge(stg_df, on=["key set name", "key domain name"], how='inner')
     filterd_bkey_df = filterd_bkey_df.drop_duplicates(subset=['key set name', 'key domain name'])[
-        ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical_table']  # Changed from 'physical table'
+        ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical_table'] 
     ]
 
-    # Rest of the function remains the same
     bmap_df = smx_model["bmap"]
     filterd_bmap_df = bmap_df.merge(stg_df, on=["code set name", "code domain name"], how='inner')
     filterd_bmap_df =filterd_bmap_df.drop_duplicates(subset=['code set name', 'code domain name'])[
@@ -238,16 +239,16 @@ def create_SCRI_input_view(smx_model, environment):
     sql_scripts = []
     # Group by each STG table name
     for table_name_stg, group in stg_df.groupby('table name stg'):
-        process_name = f"TX_SRCI_{table_name_stg}" 
+        process_name = f"TX_SRCI_{table_name_stg}"  
         BKscolumns =[]
         SK_counter = 1
         BMscolumns=[] 
-        BM_counter = 1
-        joins_SK_script=[]
-        joins_BM_script = []
+        BM_counter = 1  
+        joins_SK_script=[]  
+        joins_BM_script = []  
 
-        # list of source columns is columns without SK_ & BM_ columns
-        Source_columns=[]
+        # list of source columns is columns without SK_ & BM_ columns  
+        Source_columns=[] 
         conditions=[]
         joins_BKs_script=[]
 
@@ -293,7 +294,7 @@ def create_SCRI_input_view(smx_model, environment):
                             print("BM_column:    "+  col_name)
             else :
                 Source_columns.append(f"SOURCE.{col_name}")
-                conditions.append(f"SOURCE.{col_name} IS NOT NULL")
+                conditions.append(f"SOURCE.{col_name} IS NOT NULL \n")
         # end of row loop 
         source_columns_str = ",\n".join(Source_columns)
         BKscolumns_str = ",\n".join(BKscolumns)
@@ -323,17 +324,20 @@ def create_SCRI_input_view(smx_model, environment):
         FROM G{environment}1V_STG.{table_name_stg} SOURCE
         {joins_BKs_script_str}
         {joins_BM_script_str}
-        WHERE {conditions_str}
+        WHERE {conditions_str};
         """  
         sql_scripts.append(create_stmnt.strip())
     return "\n\n".join(sql_scripts)
 
 
 def create_core_table(smx_model, environment):
-    core_tables_df = smx_model["core tables"][['table name','column name','data type','pk']].dropna()
-    print (core_tables_df)
-    sql_scripts=[]
-    for table_name,group in core_tables_df.groupby('table name'):
+    # Include 'table name' and 'pk' columns in the selection
+    core_tables_df = smx_model["core tables"][['table name', 'column name', 'data type', 'pk']].replace('', pd.NA)
+    core_tables_df = core_tables_df.dropna(subset=['column name','data type'])
+    print(core_tables_df)
+    sql_scripts = []
+    
+    for table_name, group in core_tables_df.groupby('table name'):
         columns = []
         primary_key = None
 
@@ -342,21 +346,25 @@ def create_core_table(smx_model, environment):
             col_type = row['data type']
             columns.append(f"{col_name} {col_type}")
 
-            is_pk = row['pk'].lower()
-            if is_pk == 'y':
-                primary_key = col_name
+            # Handle NaN values in pk column
+            pk_value = row['pk']
+            if pd.notna(pk_value):
+                is_pk = str(pk_value).lower()
+                if is_pk == 'y':
+                    primary_key = col_name
 
-            # Join all columns as string
+        # Join all columns as string
         column_definitions = ",\n        ".join(columns)
 
+        # Fixed the double commas in the CREATE statement
         create_stmnt = f"""
         CREATE MULTISET TABLE G{environment}1T_CORE.{table_name}
     (
         {column_definitions},
         Start_Ts TIMESTAMP(6) WITH TIME ZONE,
         End_Ts TIMESTAMP(6) WITH TIME ZONE,
-        Start_Date DATE FORMAT 'YYYY-MM-DD',,
-        End_Date DATE FORMAT 'YYYY-MM-DD',,
+        Start_Date DATE FORMAT 'YYYY-MM-DD',
+        End_Date DATE FORMAT 'YYYY-MM-DD',
         Record_Deleted_Flag BYTEINT,
         Ctl_Id SMALLINT COMPRESS 997,
         File_Id SMALLINT COMPRESS 997,
@@ -367,14 +375,14 @@ def create_core_table(smx_model, environment):
     )PRIMARY INDEX ({primary_key});
     """
         sql_scripts.append(create_stmnt.strip())
+    
     return "\n\n".join(sql_scripts)
-
 def create_core_table_view(smx_model, environment):
     core_tables_DF = smx_model['core tables'][['table name']].drop_duplicates()
-    core_tables = core_tables['table name'].tolist()
-
+    
     sql_scripts = []
-    for table_name in core_tables:
+    for _,row in core_tables_DF.iterrows():
+        table_name = row['table name']
         create_stmnt =f"""
         REPLACE VIEW G{environment}1V_CORE.{table_name} AS LOCK ROW FOR ACCESS SELECT * FROM G{environment}1T_CORE.{table_name};
         """
@@ -384,65 +392,68 @@ def create_core_table_view(smx_model, environment):
 
 # Data will be passed filtered from UI  
 def create_core_input_view(smx_model,environment):
-    # Ecvlude lookups (tables without subject area)
+    # Exclude lookups (tables without subject area)
     core_tables_df = smx_model['core tables'].dropna(subset=['subject area','table name'])
     # table_mapping_df and column_mapping_df  is already filtered from interface
     table_mapping_df = smx_model['table mapping']
     column_mapping_df = smx_model['column mapping']
-    # user has selected only one mapping_name & one target_table_name
-    target_table_name = table_mapping_df['target table name'].iloc[0]
-    mapping_name = table_mapping_df['mapping name'].iloc[0]
-    # selected maaping name always have 1 main source 
-    main_source = table_mapping_df["main source"].iloc[0]
-    mapped_to_table = column_mapping_df['mapped to table'].iloc[0]
 
-    cast_list=[]
-    for _, row in column_mapping_df.iterrows():
-        transformation_type = row['transformation type'].lower()  
-        mapped_to_column = row['mapped to column']   
-        column_name = row['column name']
-        print(f"Looking for: '{column_name}'")
+    sql_scripts =[]
+    for target_table_name , df in table_mapping_df.groupby('target table name'):
+        print(f"target_table_name",target_table_name)
 
-        print(core_tables_df[core_tables_df['column name'] == column_name]['data type'])
-        # get the data type of column name in column mapping from core table 
-        data_type = core_tables_df[core_tables_df['column name'] == column_name]['data type'].iloc[0]
+        for _,row in df.iterrows():
+            mapping_name = row['mapping name']
+            main_source = row['main source']
 
-        if(transformation_type == 'copy'):
-            cast_list.append(f"CAST(A.{mapped_to_column} AS {data_type}) AS {column_name}")
+            cast_list=[]
+            for _, row in column_mapping_df.iterrows():
+                mapped_to_table = row['mapped to table']
+                transformation_type = row['transformation type'].lower()  
+                mapped_to_column = row['mapped to column'] 
+                column_name = row['column name'] 
+                # get the data type of column name in column mapping from core table 
+                print("column name        ",column_name)
 
-        elif(transformation_type=='sql'):
-            transformation_rule = row['transformation rule'].replace(mapped_to_column, f"A.{mapped_to_column}")
-            cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
-        
-        elif(transformation_type=='const'):
-            transformation_rule = str(row['transformation rule'])
-            print("const")
-            if pd.isna(transformation_rule):
-                # If it's NaN, use NULL
-                transformation_rule = "NULL"
+                data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]
+
+
+                if(transformation_type == 'copy'): 
+                    cast_list.append(f"CAST({mapped_to_column} AS {data_type}) AS {column_name}")
+
+                elif(transformation_type=='sql'):
+                    transformation_rule = row['transformation rule']
+                    cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+                
+                elif(transformation_type=='const'):
+                    transformation_rule = str(row['transformation rule'])
+                    if pd.isna(transformation_rule):
+                        # If it's NaN, use NULL
+                        transformation_rule = "NULL"
+                    cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+
+            process_name = f"TX_{mapping_name}"
+            cast = ",\n  ".join(cast_list)
+
+            create_stmnt =  f"""
+            REPLACE VIEW G{environment}1V_INP.TX_{mapping_name} AS LOCK ROW FOR ACCESS
+            SELECT DISTINCT
+            /* Target Table: 	{target_table_name} */
+            /* Table Mapping:	{mapping_name} */
+            /*Source Table:		{main_source} */
+            {cast},
+            (SELECT BUSINESS_DATE FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Start_Date,
+            DATE '9999-09-09' AS End_Date,
+            CASE WHEN PARTY.PARTY_ID IS NULL THEN 0 ELSE 1 END AS Record_Deleted_Flag,
+            (SELECT Ctl_Id FROM G{environment}1V_GCFR.GCFR_Process WHERE PROCESS_NAME='{process_name}') AS Ctl_Id,
+            '{process_name}' AS Process_Name,
+            (SELECT Process_ID FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Process_ID,
+            NULL AS update_Process_Name,
+            NULL AS update_Process_Id
             
-            print(f"sssssss     {transformation_rule}")
-            cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
-
-    process_name = f"TX_{mapping_name}"
-    cast = ",\n  ".join(cast_list)
-
-    return f"""
-    REPLACE VIEW G{environment}1V_INP.TX_{mapping_name} AS LOCK ROW FOR ACCESS
-    SELECT DISTINCT
-    /* Target Table: 	{target_table_name} */
-    /* Table Mapping:	{mapping_name} */
-    /*Source Table:		{main_source} */
-	{cast},
-	(SELECT BUSINESS_DATE FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Start_Date,
-	DATE '9999-09-09' AS End_Date,
-	CASE WHEN PARTY.PARTY_ID IS NULL THEN 0 ELSE 1 END AS Record_Deleted_Flag,
-	(SELECT Ctl_Id FROM G{environment}1V_GCFR.GCFR_Process WHERE PROCESS_NAME='{process_name}') AS Ctl_Id,
-	'{process_name}' AS Process_Name,
-	(SELECT Process_ID FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Process_ID,
-	NULL AS update_Process_Name,
-	NULL AS update_Process_Id
+            FROM G{environment}1V_SRCI.{mapped_to_table} A;
+        """
     
-    FROM G{environment}1V_SRCI.{mapped_to_table} A;
-"""
+            sql_scripts.append(create_stmnt.strip())
+    return "\n\n".join(sql_scripts)
 
