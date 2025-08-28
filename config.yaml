@@ -1,7 +1,23 @@
 cookie:
-  expiry_days: 1000
+  expiry_days: 1
 credentials:
   usernames:
+    maha_seleem:
+      failed_login_attempts: 0
+      first_name: Maha
+      last_name: Seleem
+      logged_in: false
+      password: 123456789
+      roles:
+        - Reviewer
+    tarek_ahmed:
+      failed_login_attempts: 0
+      first_name: Maha
+      last_name: Seleem
+      logged_in: false
+      password: 123456789
+      roles:
+        - Reviewer
     Moo:
       failed_login_attempts: 0
       first_name: Alsaidy

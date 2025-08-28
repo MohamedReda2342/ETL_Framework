@@ -148,7 +148,7 @@ if uploaded_file is not None:
 # --------------------------------------------------- Key domain name ------------------------------------------------
     # Filtered BKEY sheet By Key Set Name
     filtered_key_set_names_DF = bkey_sheet[bkey_sheet['key set name'].isin(selected_key_set)] 
-    st.write(filtered_key_set_names_DF)
+    # st.write(filtered_key_set_names_DF)
     # Key Domain Name  
 
     with multi_col1:
