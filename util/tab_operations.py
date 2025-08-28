@@ -19,7 +19,7 @@ field_requirements = {
     "environment": "all",
     
     # Data type is only required for REG_BKEY
-    "data_type": ["REG_BKEY"],
+    "data_type": ["REG_BKEY","all_bkey"],
     
     # Key set is required for these actions
     "key_set": [
