@@ -7,15 +7,15 @@ credentials:
       first_name: Maha
       last_name: Seleem
       logged_in: false
-      password: 123456789
+      password: '123456789'
       roles:
         - Reviewer
-    tarek_ahmed:
+    test_user:
       failed_login_attempts: 0
-      first_name: Maha
-      last_name: Seleem
+      first_name: tester
+      last_name: 
       logged_in: false
-      password: 123456789
+      password: '123456789'
       roles:
         - Reviewer
     Moo:
