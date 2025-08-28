@@ -405,7 +405,7 @@ def main(smx_model, key_type, env , bigint_flag):
         case "REG_CORE_PROCESS" :
                     script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
 
-        case "HIST_REG" :# STG tables".lower():
+        case "HIST_REG" :
             
             condition= "['historization key'].notnull()"
             smx_model= smx_preprocess(smx_model, 'core tables', condition)

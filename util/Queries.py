@@ -46,11 +46,13 @@ def generate_bkey_views(smx_model, env):
 def insert_bmap_values(smx_model, env):
     # Get BMAP values dataframe from smx_model
     BMAP_values_df = smx_model['bmap values']
+
     # Generate views 
     scripts = []
     for _, row in BMAP_values_df.iterrows():
+        code_set_name = row['code set name']
         sql_script = f"""INSERT INTO G{env}1T_UTLFW.BMAP_Standard_Map (Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description, Start_Date, End_Date,Record_Deleted_Flag,Ctl_Id , PROCESS_NAME, PROCESS_ID, UPDATE_PROCESS_NAME, UPDATE_PROCESS_ID)
-    VALUES ({row['source code']}, {row['code domain id']}, {row['code set id']}, {row['edw code']}, {row['description']},CURRENT_DATE, DATE '9999-09-09',0,0,'BM_GENDER_TYPE',0,NULL,NULL);"""
+    VALUES ({row['source code']}, {row['code domain id']}, {row['code set id']}, {row['edw code']}, {row['description']},CURRENT_DATE, DATE '9999-09-09',0,0,'BM_{code_set_name}',0,NULL,NULL);"""
         scripts.append(sql_script)        
     return scripts
 
@@ -115,10 +117,17 @@ def create_stg_table_and_view(smx_model, environment):
             col_name = row['column name stg']
             col_type = row['stg data type']
             is_pk = row['pk'].lower()
+            mandatory = row['mandatory']
             # - surrogate key && BM  columns are excluded ( any column start with SK_ or BM_ )
             if col_name.upper().startswith('SK_') or col_name.upper().startswith('BM_'):
                 continue
-            columns.append(f"{col_name} {col_type}")
+            if mandatory!='':   
+                is_mandatory = str(mandatory).lower()
+                if is_mandatory == 'y':
+                    columns.append(f"{col_name} {col_type} NOT NULL")
+            else:
+                columns.append(f"{col_name} {col_type}")
+
 
             if is_pk == 'y':
                 primary_key = col_name
@@ -128,15 +137,9 @@ def create_stg_table_and_view(smx_model, environment):
 
         # Add the CREATE TABLE statement
         create_stmt = f"""
-        CREATE MULTISET TABLE G{environment}1T_STG.{table_name_stg},
-            FALLBACK,
-            NO BEFORE JOURNAL, 
-            NO AFTER JOURNAL,
-            CHECKSUM = DEFAULT,
-            DEFAULT MERGEBLOCKRATIO,
-            MAP = TD_MAP1
+        CREATE MULTISET TABLE G{environment}1T_STG.{table_name_stg}
         (
-            {column_definitions},
+        {column_definitions},
         Start_Ts TIMESTAMP(6) WITH TIME ZONE,
         End_Ts TIMESTAMP(6) WITH TIME ZONE,
         Start_Date DATE,
@@ -164,9 +167,11 @@ def create_stg_table_and_view(smx_model, environment):
 - surrogate key && BM  columns are excluded ( any column start with SK_ or BM_ )
 """
 def create_SCRI_table(smx_model, environment):
-    stg_df = smx_model['stg tables'][['table name stg', 'column name stg', 'stg data type', 'pk']].dropna()
-    
+    stg_df = smx_model['stg tables']
     sql_scripts = []
+
+    stg_df = stg_df.dropna(subset=['table name stg', 'column name stg', 'stg data type'])
+    # print(stg_df.columns)
 
     # Group by each STG table name
     for table_name_stg, group in stg_df.groupby('table name stg'):
@@ -177,7 +182,14 @@ def create_SCRI_table(smx_model, environment):
             col_name = row['column name stg']
             col_type = row['stg data type']
             is_pk = row['pk'].lower()
-            columns.append(f"{col_name} {col_type}")
+            mandatory = row['mandatory']
+            if mandatory !='' :
+                is_mandatory = str(mandatory).lower()
+                if is_mandatory == 'y':
+                    primary_key = col_name
+                    columns.append(f"{col_name} {col_type} NOT NULL")
+            else:
+                columns.append(f"{col_name} {col_type}")
 
             if is_pk == 'y':
                 primary_key = col_name
@@ -224,10 +236,9 @@ def create_SCRI_input_view(smx_model, environment):
     stg_df = smx_model["stg tables"]
     bkey_df = smx_model["bkey"]
 
-
     filterd_bkey_df = bkey_df.merge(stg_df, on=["key set name", "key domain name"], how='inner')
     filterd_bkey_df = filterd_bkey_df.drop_duplicates(subset=['key set name', 'key domain name'])[
-        ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical_table'] 
+        ['key set name', 'key domain name', 'key set id', 'key domain id', 'physical table'] 
     ]
 
     bmap_df = smx_model["bmap"]
@@ -262,7 +273,7 @@ def create_SCRI_input_view(smx_model, environment):
                 (filterd_bkey_df['key domain name'] == row['key domain name'])
             ]
             if not matched_row.empty:
-                physical_table = matched_row['physical_table'].iloc[0]  # Changed from 'physical table'
+                physical_table = matched_row['physical table'].iloc[0]  # Changed from 'physical table'
                 key_domain_id = matched_row['key domain id'].iloc[0]
 
             # get current column 
@@ -332,9 +343,9 @@ def create_SCRI_input_view(smx_model, environment):
 
 def create_core_table(smx_model, environment):
     # Include 'table name' and 'pk' columns in the selection
-    core_tables_df = smx_model["core tables"][['table name', 'column name', 'data type', 'pk']].replace('', pd.NA)
+    core_tables_df = smx_model["core tables"]
     core_tables_df = core_tables_df.dropna(subset=['column name','data type'])
-    print(core_tables_df)
+
     sql_scripts = []
     
     for table_name, group in core_tables_df.groupby('table name'):
@@ -344,7 +355,14 @@ def create_core_table(smx_model, environment):
         for _, row in group.iterrows():
             col_name = row['column name']
             col_type = row['data type']
-            columns.append(f"{col_name} {col_type}")
+            mandatory = row['mandatory']
+            if mandatory!='' :
+                is_mandatory = str(mandatory).lower()
+                if is_mandatory == 'y':
+                    primary_key = col_name
+                    columns.append(f"{col_name} {col_type} NOT NULL")
+            else:
+                columns.append(f"{col_name} {col_type}")
 
             # Handle NaN values in pk column
             pk_value = row['pk']
@@ -352,7 +370,6 @@ def create_core_table(smx_model, environment):
                 is_pk = str(pk_value).lower()
                 if is_pk == 'y':
                     primary_key = col_name
-
         # Join all columns as string
         column_definitions = ",\n        ".join(columns)
 
@@ -392,16 +409,17 @@ def create_core_table_view(smx_model, environment):
 
 # Data will be passed filtered from UI  
 def create_core_input_view(smx_model,environment):
-    # Exclude lookups (tables without subject area)
-    core_tables_df = smx_model['core tables'].dropna(subset=['subject area','table name'])
     # table_mapping_df and column_mapping_df  is already filtered from interface
     table_mapping_df = smx_model['table mapping']
+    # Exclude lookups (tables without subject area)
+    core_tables_df = smx_model['core tables'].dropna(subset=['subject area','table name'])
+    
+    # print(core_tables_df['table name'].isin(table_mapping_df['target table name']))
+    core_tables_df=core_tables_df[core_tables_df['table name'].isin(table_mapping_df['target table name'])]
     column_mapping_df = smx_model['column mapping']
 
     sql_scripts =[]
     for target_table_name , df in table_mapping_df.groupby('target table name'):
-        print(f"target_table_name",target_table_name)
-
         for _,row in df.iterrows():
             mapping_name = row['mapping name']
             main_source = row['main source']
@@ -413,11 +431,7 @@ def create_core_input_view(smx_model,environment):
                 mapped_to_column = row['mapped to column'] 
                 column_name = row['column name'] 
                 # get the data type of column name in column mapping from core table 
-                print("column name        ",column_name)
-
                 data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]
-
-
                 if(transformation_type == 'copy'): 
                     cast_list.append(f"CAST({mapped_to_column} AS {data_type}) AS {column_name}")
 
@@ -431,7 +445,7 @@ def create_core_input_view(smx_model,environment):
                         # If it's NaN, use NULL
                         transformation_rule = "NULL"
                     cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
-
+                print("ok------------")
             process_name = f"TX_{mapping_name}"
             cast = ",\n  ".join(cast_list)
 

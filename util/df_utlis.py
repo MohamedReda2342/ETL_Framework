@@ -22,4 +22,14 @@ def filter_by_column_value(df, column_name, values_to_filter):
     return df[df[column_name].isin(values_list)]
             
 
-    
+def flatten_list(nested_list):
+    flattened = []
+    for item in nested_list:
+        if isinstance(item, list):
+            flattened.extend(flatten_list(item))  # recursive call for nested lists
+        elif isinstance(item, str):
+            flattened.append(item)  # strings are treated as single items, not iterables
+        else:
+            # Handle other types (int, float, etc.) by converting to string
+            flattened.append(str(item))
+    return flattened

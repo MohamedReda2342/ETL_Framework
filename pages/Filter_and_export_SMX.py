@@ -64,12 +64,20 @@ if uploaded_file is not None:
     with col3:
         selected_action = st.selectbox(
             f"Key type:",
-            options=tab_operations.get_action_options(selected_tab),
+            options = tab_operations.get_action_options(selected_tab),
             key="Key type"
         )
+
+    list_of_key_types = []
     if selected_action:
+        if selected_action == "All" and selected_tab =="bkey":
+            selected_action = "all_bkey"
+            list_of_key_types = tab_operations.get_action_options(selected_tab)
+        elif selected_action == "All" and selected_tab =="bmap":
+            selected_action = "all_bmap"
+            list_of_key_types = tab_operations.get_action_options(selected_tab)
+
         disable_statuses = tab_operations.get_all_disable_statuses(selected_action, selected_tab)
-        
         # Replace your individual disable variables with:
         disable_frequency = disable_statuses["disable_frequency"]
         disable_data_type = disable_statuses["disable_data_type"] 
@@ -121,7 +129,7 @@ if uploaded_file is not None:
 
 # --------------------------------------------------- key set names ------------------------------------------------
 
-    multi_col3 , multi_col1, multi_col2  = st.columns(3)  
+    multi_col3 , multi_col1= st.columns(2)  
     with multi_col3:
         # Get base options
         all_key_set_names = bkey_sheet['key set name'].replace('', pd.NA).dropna().unique().tolist()
@@ -141,7 +149,7 @@ if uploaded_file is not None:
 # --------------------------------------------------- Key domain name ------------------------------------------------
     # Filtered BKEY sheet By Key Set Name
     filtered_key_set_names_DF = bkey_sheet[bkey_sheet['key set name'].isin(selected_key_set)] 
-
+    st.write(filtered_key_set_names_DF)
     # Key Domain Name  
 
     with multi_col1:
@@ -166,32 +174,41 @@ if uploaded_file is not None:
     else:
         filtered_bkey_df = filtered_key_set_names_DF
 
-    # STG Tables 
-    with multi_col2:
-        # Get all STG table options
-        all_stg_tables = stg_tables_sheet['table name stg'].dropna().unique().tolist() 
-        # Filter STG tables based on selected key set 
-        filtered_stg_table = stg_tables_sheet
-        stg_table_options=[]
-        # This ensure also that stg tables DF has no null in the key set name and key domain name 
-        if disable_key_set and disable_key_domain:
-            stg_table_options = all_stg_tables
-        elif not disable_key_set and not disable_key_domain and selected_key_set and selected_domains:
-            filtered_stg_table = stg_tables_sheet[stg_tables_sheet['key set name'].isin(selected_key_set)]
-            filtered_stg_table = filtered_stg_table[filtered_stg_table['key domain name'].isin(selected_domains)]
-            stg_table_options = filtered_stg_table['table name stg'].dropna().unique().tolist()
+    # Get all STG table options
+    all_stg_tables = stg_tables_sheet['table name stg'].dropna().unique().tolist() 
+    # Filter STG tables based on selected key set 
+    filtered_stg_table = stg_tables_sheet
+    stg_table_options=[]
+    # This ensure also that stg tables DF has no null in the key set name and key domain name 
+    if disable_key_set and disable_key_domain:
+        stg_table_options = all_stg_tables
+    elif not disable_key_set and not disable_key_domain and selected_key_set and selected_domains:
+        filtered_stg_table = stg_tables_sheet[stg_tables_sheet['key set name'].isin(selected_key_set)]
+        filtered_stg_table = filtered_stg_table[filtered_stg_table['key domain name'].isin(selected_domains)]
+        stg_table_options = filtered_stg_table['table name stg'].dropna().unique().tolist()
 
-        selected_tables = st.selectbox(
+    col_select, col_checkbox = st.columns([3, 1])
+    
+    with col_checkbox:
+        st.write("")  # First line break
+        st.write("")  # Second line break
+        select_all_stg_tables = st.checkbox("Select all tables", key=f"{selected_action}select_all_tables", disabled=disable_stg_tables)
+    
+    if select_all_stg_tables:
+        selected_tables = all_stg_tables
+        disable_stg_tables = True
+
+    with col_select:
+        selected_tables = st.multiselect(
             "STG table :",
-            options=["All"] + stg_table_options,
-            index=None,  
-            placeholder="Choose an option..."  ,
-            help="""- This tables are filtered based on selected key set name and code domain names """,
+            options=stg_table_options,
+            placeholder="Choose tables...",
+            help="""- These tables are filtered based on selected key set name and code domain names """,
             key=f"{selected_action}stg_tables",
-            disabled= disable_stg_tables
-        ) 
-        selected_tables = all_stg_tables  if selected_tables == "All" else [selected_tables]
-
+            disabled=disable_stg_tables
+        )
+    if select_all_stg_tables:
+        selected_tables = all_stg_tables
     # Filter STG tables dataframe
     filterd_STG_tables_df = filtered_stg_table[filtered_stg_table['table name stg'].isin(selected_tables)] if selected_tables else stg_tables_sheet
 # --------------------------------------------------- code_set_names  ------------------------------------------------
@@ -227,7 +244,7 @@ if uploaded_file is not None:
         
     selected_code_domain_names = code_domain_names_options if selected_code_domain_names == "All" else [selected_code_domain_names]
 
-# -----------------------------------------  Core tables  -------------------------------------------------------------------
+# ---------------------------------------------------  Core tables  -------------------------------------------------------------------
     selected_core_table , selected_mapping_name = st.columns(2)
     with selected_core_table:
         # core tables without lookups (core table that doesn't have subject area )
@@ -248,7 +265,7 @@ if uploaded_file is not None:
         if (selected_core_table and not disable_core_tables):
             all_mapping_names = table_mapping_sheet[table_mapping_sheet['target table name'].isin(selected_core_table)]['mapping name'].unique().tolist() 
         else:
-            all_mapping_names =table_mapping_sheet['mapping name'].unique().tolist()
+            all_mapping_names = table_mapping_sheet['mapping name'].unique().tolist()
         selected_mapping_name = st.selectbox(
         "Select mapping name:", 
         options = ["All"] + all_mapping_names,
@@ -261,18 +278,17 @@ if uploaded_file is not None:
     selected_mapping_name = all_mapping_names if selected_mapping_name == "All" else [selected_mapping_name]
 
     # Filter table mapping by selected core table and mapping name
-    filtered_table_mapping_df = table_mapping_sheet[
-        (table_mapping_sheet['target table name'].isin(selected_core_table)) & 
-        (table_mapping_sheet['mapping name'].isin(selected_mapping_name))
-    ]
+    filtered_table_mapping_df = table_mapping_sheet[table_mapping_sheet['mapping name'].isin(selected_mapping_name)]
     # filter column_mapping_sheet by selected_mapping_name
     filtered_column_mapping_df = column_mapping_sheet[column_mapping_sheet['mapping name'].isin(selected_mapping_name)]
-
 #---------------------------------------    Display query editor and execute query    ---------------------------------------
     if disable_key_set and disable_key_domain:
         filtered_bkey_df = bkey_sheet
 
-    filtered_core_tables_df = core_tables_sheet if not selected_core_table else core_tables_sheet[core_tables_sheet['table name'].isin(selected_core_table)]
+    if disable_core_tables :
+        filtered_core_tables_df = core_tables_sheet 
+    else:
+        filtered_core_tables_df = core_tables_sheet[core_tables_sheet['table name'].isin(selected_core_table)]
     
     # filtered bmap values by code domain name && code set name
     filtered_bmap_values_df = filtered_code_set_names_df[filtered_code_set_names_df['code domain name'].isin(selected_code_domain_names)]
@@ -299,11 +315,11 @@ if uploaded_file is not None:
             "column mapping": filtered_column_mapping_df,
         }
     print("---------------------  Main  --------------------------")
+    
     smx_model = {k.lower(): v for k, v in Dict.items()}
     # Process each DataFrame: lowercase
     for key in smx_model:
         smx_model[key].columns = [col.lower() for col in smx_model[key].columns]
-
 
     # At the top of your script logic, after the button columns
     gen_query_col, export_query_col, exec_query_col = st.columns(3) 
@@ -313,7 +329,7 @@ if uploaded_file is not None:
         st.session_state["generated_query"] = ""
     with gen_query_col:
         if st.button(f"Generate Query", key=f"Generate_Query_Bttn"):
-            
+
             # Simple validation check
             is_valid, validation_message = tab_operations.validate_all_required_fields(
                 selected_action, 
@@ -322,7 +338,7 @@ if uploaded_file is not None:
                 selected_data_type=selected_data_type,
                 selected_key_set=selected_key_set,
                 selected_domains=selected_domains,
-                selected_tables=selected_tables,
+                selected_tables=selected_tables or select_all_stg_tables,
                 selected_code_set_names=selected_code_set_names,
                 selected_code_domain_names=selected_code_domain_names,
                 selected_core_table=selected_core_table,
@@ -332,21 +348,17 @@ if uploaded_file is not None:
             if not is_valid:
                 st.warning(validation_message)
             else:
-                # Proceed with query generation
-                script = generating_scripts.main(smx_model, selected_action, selected_environment, bigint_flag)
-                
-                # Format the script output
-                if script and isinstance(script, list):
-                    flattened_queries = []
-                    for item in script:
-                        if isinstance(item, list):
-                            flattened_queries.extend(item)
-                        else:
-                            flattened_queries.append(item)
-                    query_for_editor = '\n'.join(flattened_queries)
-                else:
-                    query_for_editor = str(script) if script else ""
-                    
+                flattened_queries = []
+                if selected_action == "all_bkey" or selected_action == "all_bmap":
+                    for action in list_of_key_types[1:]:  # Skip first element because it's "All"
+                        script = generating_scripts.main(smx_model, action, selected_environment, bigint_flag)
+                        flattened_queries.extend(script)
+
+                else :
+                    script = generating_scripts.main(smx_model, selected_action, selected_environment, bigint_flag)
+                    flattened_queries.extend(script) if isinstance(script, list) else flattened_queries.append(script)
+                query_for_editor = '\n'.join(df_utlis.flatten_list(flattened_queries))
+
                 st.session_state["generated_query"] = query_for_editor
                 st.rerun()  # Refresh to show the updated content
     # Use st_ace for SQL syntax highlighting

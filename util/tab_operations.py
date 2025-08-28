@@ -5,11 +5,13 @@ from util import df_utlis
 tab_options = {
     "stream": ["STREAM"],
     "stg tables": ["create_stg_table_and_view"],
-    "bkey": ["REG_BKEY", "REG_BKEY_DOMAIN", "REG_BKEY_PROCESS", "bkey_views", "BKEY_CALL"],
-    "bmap": ["REG_BMAP", "REG_BMAP_DOMAIN", "Insert BMAP values", "Create LKP views"],
+    "bkey": ["All","REG_BKEY", "REG_BKEY_DOMAIN", "REG_BKEY_PROCESS", "bkey_views", "BKEY_CALL"],
+    "bmap": ["All","REG_BMAP", "REG_BMAP_DOMAIN", "Insert BMAP values", "Create LKP views"],
+
     "srci": ["create_SCRI_table", "create_SCRI_view", "create_SCRI_input_view", "EXEC_SRCI"],
-    "core tables": ["create_core_table", "create_core_table_view", "CORE_KEY_COL_REG", "create_core_input_view"]
+    "core tables": ["create_core_table", "create_core_table_view", "CORE_KEY_COL_REG", "create_core_input_view","HIST_REG"]
 }
+
 
 # Field requirements for each key type (action)
 field_requirements = {
@@ -22,33 +24,34 @@ field_requirements = {
     # Key set is required for these actions
     "key_set": [
         "STREAM", "BKEY_CALL", "REG_BKEY", "REG_BKEY_PROCESS", 
-        "REG_BKEY_DOMAIN", "bkey_views"
+        "REG_BKEY_DOMAIN", "bkey_views","all_bkey"
     ],
     
     # Key domain is required for these actions
     "key_domain": [
         "STREAM", "BKEY_CALL", "REG_BKEY_PROCESS", "REG_BKEY_DOMAIN", 
-        "bkey_views"
+        "bkey_views","all_bkey"
     ],
     
     # STG tables is required for these actions
     "stg_tables": [
         "STREAM", "BKEY_CALL", "bkey_views", "REG_BKEY_PROCESS", 
         "create_stg_table_and_view", "EXEC_SRCI", "create_SCRI_table",
-        "create_SCRI_view", "create_SCRI_input_view"
+        "create_SCRI_view", "create_SCRI_input_view","all_bkey"
     ],
     
     # Code set names is required for these actions
-    "code_set_names": ["REG_BMAP", "REG_BMAP_DOMAIN", "Insert BMAP values", "Create LKP views"],
+    "code_set_names": ["REG_BMAP", "REG_BMAP_DOMAIN", "Insert BMAP values", "Create LKP views","all_bmap"],
     
     # Code domain names is required for these actions
-    "code_domain_names": ["REG_BMAP_DOMAIN", "Insert BMAP values"],
+    "code_domain_names": ["REG_BMAP_DOMAIN", "Insert BMAP values","all_bmap"],
     
     # Core tables is required when tab is "6- core tables"
-    "core_tables": "tab_6_core",
+    "core_tables": ["tab_6_core","HIST_REG","create_core_table","create_core_table_view","CORE_KEY_COL_REG"],
     
     # Mapping names is required for these actions
     "mapping_names": ["create_core_input_view"]
+
 }
 
 def get_action_options(tab_name):
@@ -105,7 +108,7 @@ def validate_all_required_fields(selected_action, selected_tab, **field_values):
         "data_type": field_values.get("selected_data_type"),
         "key_set": field_values.get("selected_key_set"),
         "key_domain": field_values.get("selected_domains"),
-        "stg_tables": field_values.get("selected_tables"),
+        "stg_tables": field_values.get("stg_table_options") if field_values.get("select_all_stg_tables") else field_values.get("selected_tables"),
         "code_set_names": field_values.get("selected_code_set_names"),
         "code_domain_names": field_values.get("selected_code_domain_names"),
         "core_tables": field_values.get("selected_core_table"),
