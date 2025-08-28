@@ -6,7 +6,7 @@ import util.df_utlis as dfutils
 from util.auth import check_authentication
 import difflib
 # Check authentication - this must be the first Streamlit command
-# authenticator = check_authentication()
+authenticator = check_authentication()
 # Only authenticated users will see content below this point
 st.markdown(
     """<style>
@@ -18,7 +18,7 @@ st.markdown(
 )
 
 # Set page config
-# st.set_page_config(page_title="WAVZ SMX Workbook Comparator", layout="wide")
+st.set_page_config(page_title="WAVZ SMX Workbook Comparator", layout="wide")
 
 
 # Function to load and process workbook

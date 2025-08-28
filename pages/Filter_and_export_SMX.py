@@ -1,4 +1,3 @@
-from matplotlib.backends.registry import backend_registry
 import streamlit as st
 from streamlit_ace import st_ace
 import pandas as pd
@@ -13,7 +12,7 @@ from util.auth import check_authentication
 import util.tab_operations as tab_operations
 
 # Authentication check - must be first command
-# authenticator = check_authentication()
+authenticator = check_authentication()
 
 # Move file uploader to sidebar
 with st.sidebar:
@@ -24,7 +23,7 @@ with st.sidebar:
     elif 'uploaded_file' in st.session_state:
         uploaded_file = st.session_state['uploaded_file']
     
-#     authenticator.logout('Logout', 'sidebar')
+    authenticator.logout('Logout', 'sidebar')
     
 # Process the file when uploaded
 if uploaded_file is not None:
