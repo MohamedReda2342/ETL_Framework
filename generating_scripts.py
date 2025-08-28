@@ -1,19 +1,19 @@
 import streamlit as st
 import pandas as pd
 import openpyxl
-from dotenv import load_dotenv
-import os
+# from dotenv import load_dotenv
+# import os
 #import reading_text
 import read_env
-import numpy as np
+# import numpy as np
 from read_env import CurrentEnv 
-import ast 
-import sys
+# import ast 
+# import sys
 from colorama import init, Fore, Back, Style
 init(autoreset=True)  # Initialize colorama
 from itertools import chain  
-import regex as re
-import psutil
+# import regex as re
+# import psutil
 from util import Queries
 
 
