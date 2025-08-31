@@ -10,6 +10,7 @@ from util import Queries
 from datetime import datetime
 from util.auth import check_authentication
 import util.tab_operations as tab_operations
+from code_editor import code_editor
 
 # Authentication check - must be first command
 authenticator = check_authentication()
@@ -148,8 +149,6 @@ if uploaded_file is not None:
 # --------------------------------------------------- Key domain name ------------------------------------------------
     # Filtered BKEY sheet By Key Set Name
     filtered_key_set_names_DF = bkey_sheet[bkey_sheet['key set name'].isin(selected_key_set)] 
-    # st.write(filtered_key_set_names_DF)
-    # Key Domain Name  
 
     with multi_col1:
         all_key_domains = filtered_key_set_names_DF['key domain name'].dropna().unique().tolist() 
@@ -247,8 +246,11 @@ if uploaded_file is not None:
     selected_core_table , selected_mapping_name = st.columns(2)
     with selected_core_table:
         # core tables without lookups (core table that doesn't have subject area )
-        core_tables_options = core_tables_sheet.replace('', pd.NA).dropna(subset=['subject area'])['table name'].unique().tolist()
-        
+        core_tables_options = core_tables_sheet.replace('', pd.NA).dropna(subset=['subject area'])
+        if selected_action=="HIST_REG":        
+            core_tables_options = core_tables_options[core_tables_options['historization key'].isin(['STRT_DT','HIST','END_DT'])]['table name'].unique().tolist()
+        else:
+            core_tables_options = core_tables_options['table name'].unique().tolist()
         selected_core_table = st.selectbox(
             "Select core table:", 
             options = ["All"] + core_tables_options,
@@ -287,7 +289,10 @@ if uploaded_file is not None:
     if disable_core_tables :
         filtered_core_tables_df = core_tables_sheet 
     else:
-        filtered_core_tables_df = core_tables_sheet[core_tables_sheet['table name'].isin(selected_core_table)]
+        if selected_action=="HIST_REG":
+            filtered_core_tables_df = core_tables_sheet[core_tables_sheet['historization key'].isin(['STRT_DT','HIST','END_DT'])]
+        else:
+            filtered_core_tables_df = core_tables_sheet[core_tables_sheet['table name'].isin(selected_core_table)]
     
     # filtered bmap values by code domain name && code set name
     filtered_bmap_values_df = filtered_code_set_names_df[filtered_code_set_names_df['code domain name'].isin(selected_code_domain_names)]
@@ -360,14 +365,8 @@ if uploaded_file is not None:
 
                 st.session_state["generated_query"] = query_for_editor
                 st.rerun()  # Refresh to show the updated content
-    # Use st_ace for SQL syntax highlighting
-    current_query_in_editor = st.text_area(
-        "Query:",   
-        value=st.session_state["generated_query"],
-        height=500,
-        key="query_editor_widget"
-    )
 
+    current_query_in_editor = code_editor(st.session_state["generated_query"], lang="sql",focus=True)
 
     # Update the export and execute sections to use the widget value
     with export_query_col:

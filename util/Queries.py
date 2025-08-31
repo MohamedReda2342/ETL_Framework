@@ -52,7 +52,7 @@ def insert_bmap_values(smx_model, env):
     for _, row in BMAP_values_df.iterrows():
         code_set_name = row['code set name']
         sql_script = f"""INSERT INTO G{env}1T_UTLFW.BMAP_Standard_Map (Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description, Start_Date, End_Date,Record_Deleted_Flag,Ctl_Id , PROCESS_NAME, PROCESS_ID, UPDATE_PROCESS_NAME, UPDATE_PROCESS_ID)
-    VALUES ({row['source code']}, {row['code domain id']}, {row['code set id']}, {row['edw code']}, {row['description']},CURRENT_DATE, DATE '9999-09-09',0,0,'BM_{code_set_name}',0,NULL,NULL);"""
+    VALUES ('{row['source code']}', {row['code domain id']}, {row['code set id']}, {row['edw code']}, '{row['description']}',CURRENT_DATE, DATE '9999-09-09',0,0,'BM_{code_set_name}',0,'NULL',NULL);"""
         scripts.append(sql_script)        
     return scripts
 
@@ -350,7 +350,7 @@ def create_core_table(smx_model, environment):
     
     for table_name, group in core_tables_df.groupby('table name'):
         columns = []
-        primary_key = None
+        primary_key = []
 
         for _, row in group.iterrows():
             col_name = row['column name']
@@ -359,7 +359,6 @@ def create_core_table(smx_model, environment):
             if mandatory!='' :
                 is_mandatory = str(mandatory).lower()
                 if is_mandatory == 'y':
-                    primary_key = col_name
                     columns.append(f"{col_name} {col_type} NOT NULL")
             else:
                 columns.append(f"{col_name} {col_type}")
@@ -369,7 +368,7 @@ def create_core_table(smx_model, environment):
             if pd.notna(pk_value):
                 is_pk = str(pk_value).lower()
                 if is_pk == 'y':
-                    primary_key = col_name
+                    primary_key.append(col_name)
         # Join all columns as string
         column_definitions = ",\n        ".join(columns)
 
@@ -389,7 +388,7 @@ def create_core_table(smx_model, environment):
         Process_Id INTEGER,
         Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
         Update_Process_Id INTEGER
-    )PRIMARY INDEX ({primary_key});
+    )PRIMARY INDEX ({",".join(primary_key)});
     """
         sql_scripts.append(create_stmnt.strip())
     

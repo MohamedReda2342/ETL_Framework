@@ -4,7 +4,7 @@ from yaml.loader import SafeLoader
 import os
 from util.auth import check_authentication
 
-# Authentication check - must be first command
+# Authentication check - must be first command 
 authenticator = check_authentication()
 
 # Check if user has admin role
