@@ -16,4 +16,4 @@ plotly==5.18.0
 numpy>=1.20.0
 colorama>=0.4.0
 streamlit-authenticator>=0.1.0
-st-code-editor>=0.1.22
+streamlit_code_editor==0.1.22
