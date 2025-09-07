@@ -39,7 +39,7 @@ def generate_bkey_views(smx_model, env):
         """
         print(view_script)
         scripts.append(view_script)
-        
+
     return scripts
 
 #---------------------------------------------------------
@@ -52,7 +52,7 @@ def insert_bmap_values(smx_model, env):
     for _, row in BMAP_values_df.iterrows():
         code_set_name = row['code set name']
         sql_script = f"""INSERT INTO G{env}1T_UTLFW.BMAP_Standard_Map (Source_Code, Domain_Id, Code_Set_Id, EDW_Code, Description, Start_Date, End_Date,Record_Deleted_Flag,Ctl_Id , PROCESS_NAME, PROCESS_ID, UPDATE_PROCESS_NAME, UPDATE_PROCESS_ID)
-    VALUES ('{row['source code']}', {row['code domain id']}, {row['code set id']}, {row['edw code']}, '{row['description']}',CURRENT_DATE, DATE '9999-09-09',0,0,'BM_{code_set_name}',0,'NULL',NULL);"""
+    VALUES ('{row['source code']}', {row['code domain id']}, {row['code set id']}, {row['edw code']}, '{row['description']}',CURRENT_DATE, DATE '9999-09-09',0,0,'BM_{code_set_name}',0,NULL,NULL);"""
         scripts.append(sql_script)        
     return scripts
 
@@ -406,47 +406,67 @@ def create_core_table_view(smx_model, environment):
     return "\n\n".join(sql_scripts)
 
 
+
+
 # Data will be passed filtered from UI  
 def create_core_input_view(smx_model,environment):
     # table_mapping_df and column_mapping_df  is already filtered from interface
     table_mapping_df = smx_model['table mapping']
     # Exclude lookups (tables without subject area)
     core_tables_df = smx_model['core tables'].dropna(subset=['subject area','table name'])
-    
-    # print(core_tables_df['table name'].isin(table_mapping_df['target table name']))
+    # filter core tables by selected mapping names
     core_tables_df=core_tables_df[core_tables_df['table name'].isin(table_mapping_df['target table name'])]
     column_mapping_df = smx_model['column mapping']
 
     sql_scripts =[]
     for target_table_name , df in table_mapping_df.groupby('target table name'):
+        # looping on mapping names 
         for _,row in df.iterrows():
             mapping_name = row['mapping name']
             main_source = row['main source']
+            cast_columns_list=[]
+            
+            # filter column_mapping_df by current mapping name only
+            column_mapping_df = column_mapping_df[column_mapping_df['mapping name']==mapping_name]
+            process_name = f"TX_{mapping_name}"
+            historization_algorithm= row['historization algorithm']
+            # print("Row type:", type(historization_algorithm))
+            mapped_to_table = row['mapped to']
 
-            cast_list=[]
+            if str(historization_algorithm).upper() == "INSERT":
+                select_stmnt = "1 AS GCFR_DELTA_ACTION_CODE"
+            # in case of UPSERT  &  HISTORY
+            else:
+                select_stmnt=f"""(SELECT BUSINESS_DATE FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Start_Date,
+                    DATE '9999-09-09' AS End_Date,
+                    CASE WHEN PARTY.PARTY_ID IS NULL THEN 0 ELSE 1 END AS Record_Deleted_Flag,
+                    (SELECT Ctl_Id FROM G{environment}1V_GCFR.GCFR_Process WHERE PROCESS_NAME='{process_name}') AS Ctl_Id,
+                    '{process_name}' AS Process_Name,
+                    (SELECT Process_ID FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Process_ID,
+                    NULL AS update_Process_Name,
+                    NULL AS update_Process_Id, """
+
             for _, row in column_mapping_df.iterrows():
-                mapped_to_table = row['mapped to table']
                 transformation_type = row['transformation type'].lower()  
                 mapped_to_column = row['mapped to column'] 
                 column_name = row['column name'] 
                 # get the data type of column name in column mapping from core table 
                 data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]
                 if(transformation_type == 'copy'): 
-                    cast_list.append(f"CAST({mapped_to_column} AS {data_type}) AS {column_name}")
+                    cast_columns_list.append(f"CAST({mapped_to_column} AS {data_type}) AS {column_name}")
 
                 elif(transformation_type=='sql'):
                     transformation_rule = row['transformation rule']
-                    cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+                    cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
                 
                 elif(transformation_type=='const'):
-                    transformation_rule = str(row['transformation rule'])
+                    transformation_rule = row['transformation rule']
                     if pd.isna(transformation_rule):
-                        # If it's NaN, use NULL
+                        # If it's NaN, use NULL string
                         transformation_rule = "NULL"
-                    cast_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
-                print("ok------------")
-            process_name = f"TX_{mapping_name}"
-            cast = ",\n  ".join(cast_list)
+                    cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+
+            cast_columns_stmnt = ",\n  ".join(cast_columns_list)
 
             create_stmnt =  f"""
             REPLACE VIEW G{environment}1V_INP.TX_{mapping_name} AS LOCK ROW FOR ACCESS
@@ -454,16 +474,8 @@ def create_core_input_view(smx_model,environment):
             /* Target Table: 	{target_table_name} */
             /* Table Mapping:	{mapping_name} */
             /*Source Table:		{main_source} */
-            {cast},
-            (SELECT BUSINESS_DATE FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Start_Date,
-            DATE '9999-09-09' AS End_Date,
-            CASE WHEN PARTY.PARTY_ID IS NULL THEN 0 ELSE 1 END AS Record_Deleted_Flag,
-            (SELECT Ctl_Id FROM G{environment}1V_GCFR.GCFR_Process WHERE PROCESS_NAME='{process_name}') AS Ctl_Id,
-            '{process_name}' AS Process_Name,
-            (SELECT Process_ID FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Process_ID,
-            NULL AS update_Process_Name,
-            NULL AS update_Process_Id
-            
+            {cast_columns_stmnt},
+            {select_stmnt}
             FROM G{environment}1V_SRCI.{mapped_to_table} A;
         """
     

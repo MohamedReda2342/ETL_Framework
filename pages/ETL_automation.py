@@ -25,7 +25,7 @@ with st.sidebar:
         uploaded_file = st.session_state['uploaded_file']
     
     authenticator.logout('Logout', 'sidebar')
-    
+
 # Process the file when uploaded
 if uploaded_file is not None:
     file_content = uploaded_file.getvalue()
@@ -318,12 +318,12 @@ if uploaded_file is not None:
             "table mapping": filtered_table_mapping_df,
             "column mapping": filtered_column_mapping_df,
         }
-    print("---------------------  Main  --------------------------")
     
     smx_model = {k.lower(): v for k, v in Dict.items()}
     # Process each DataFrame: lowercase
     for key in smx_model:
         smx_model[key].columns = [col.lower() for col in smx_model[key].columns]
+    print("---------------------  Main  --------------------------")
 
     # At the top of your script logic, after the button columns
     gen_query_col, export_query_col, exec_query_col = st.columns(3) 

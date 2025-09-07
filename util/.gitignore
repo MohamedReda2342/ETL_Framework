@@ -4,5 +4,4 @@
 # ignore this folder
 **/Exported Queries/
 
-**/__pycache__/
-**/__pycache__
+__pycache__/

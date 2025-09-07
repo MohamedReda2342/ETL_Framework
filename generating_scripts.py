@@ -432,14 +432,6 @@ def main(smx_model, key_type, env , bigint_flag):
         case"create_core_input_view":
             script = Queries.create_core_input_view (smx_model, env)
             
-
-#            # Get the current process
-#     process = psutil.Process(os.getpid())
-
-# # Get memory information for the process
-# # rss (Resident Set Size) is the non-swapped physical memory a process uses.
-#     mem_info = process.memory_info()
-#     print(f"Current process memory usage (RSS): {round(mem_info.rss / (1024**2), 2)} MB")
     return script
 
     
