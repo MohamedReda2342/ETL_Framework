@@ -318,7 +318,7 @@ if uploaded_file is not None:
             "table mapping": filtered_table_mapping_df,
             "column mapping": filtered_column_mapping_df,
         }
-    
+    st.write(filtered_table_mapping_df)
     smx_model = {k.lower(): v for k, v in Dict.items()}
     # Process each DataFrame: lowercase
     for key in smx_model:
@@ -331,6 +331,9 @@ if uploaded_file is not None:
     # Initialize session state if not exists
     if "generated_query" not in st.session_state:
         st.session_state["generated_query"] = ""
+    if "editor_key" not in st.session_state:
+        st.session_state["editor_key"] = 0
+        
     with gen_query_col:
         if st.button(f"Generate Query", key=f"Generate_Query_Bttn"):
 
@@ -358,15 +361,24 @@ if uploaded_file is not None:
                         script = generating_scripts.main(smx_model, action, selected_environment, bigint_flag)
                         flattened_queries.extend(script)
 
-                else :
+                else:
                     script = generating_scripts.main(smx_model, selected_action, selected_environment, bigint_flag)
                     flattened_queries.extend(script) if isinstance(script, list) else flattened_queries.append(script)
+                
                 query_for_editor = '\n'.join(df_utlis.flatten_list(flattened_queries))
 
                 st.session_state["generated_query"] = query_for_editor
+                # Increment key to force editor refresh
+                st.session_state["editor_key"] += 1
                 st.rerun()  # Refresh to show the updated content
 
-    current_query_in_editor = code_editor(st.session_state["generated_query"], lang="sql",focus=True)
+    # Use the incremented key to force code editor to refresh
+    current_query_in_editor = code_editor(
+        st.session_state["generated_query"],
+        lang="sql",
+        focus=True,
+        key=f"code_editor_{st.session_state['editor_key']}"
+    )
 
     # Update the export and execute sections to use the widget value
     with export_query_col:

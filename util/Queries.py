@@ -1,4 +1,5 @@
 import math
+from typing import Counter
 from pandas.io.formats.style import Subset
 import streamlit as st
 from sqlalchemy import column, desc
@@ -121,7 +122,7 @@ def create_stg_table_and_view(smx_model, environment):
             # - surrogate key && BM  columns are excluded ( any column start with SK_ or BM_ )
             if col_name.upper().startswith('SK_') or col_name.upper().startswith('BM_'):
                 continue
-            if mandatory!='':   
+            if mandatory.strip()!='':   
                 is_mandatory = str(mandatory).lower()
                 if is_mandatory == 'y':
                     columns.append(f"{col_name} {col_type} NOT NULL")
@@ -140,16 +141,16 @@ def create_stg_table_and_view(smx_model, environment):
         CREATE MULTISET TABLE G{environment}1T_STG.{table_name_stg}
         (
         {column_definitions},
-        Start_Ts TIMESTAMP(6) WITH TIME ZONE,
-        End_Ts TIMESTAMP(6) WITH TIME ZONE,
-        Start_Date DATE,
-        End_Date DATE,
-        Record_Deleted_Flag BYTEINT,
-        Ctl_Id SMALLINT COMPRESS 997,
-        File_Id SMALLINT COMPRESS 997,
-        Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-        Process_Id INTEGER,
-        Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        START_TS TIMESTAMP(6) WITH TIME ZONE,
+        END_TS TIMESTAMP(6) WITH TIME ZONE,
+        START_DATE DATE,
+        END_DATE DATE,
+        RECORD_DELETED_FLAG BYTEINT,
+        CTL_ID SMALLINT COMPRESS 997,
+        FILE_ID SMALLINT COMPRESS 997,
+        PROCESS_NAME VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        PROCESS_ID INTEGER,
+        UPDATE_PROCESS_NAME VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
         Update_Process_Id INTEGER
         )
         PRIMARY INDEX ({primary_key});
@@ -183,7 +184,7 @@ def create_SCRI_table(smx_model, environment):
             col_type = row['stg data type']
             is_pk = row['pk'].lower()
             mandatory = row['mandatory']
-            if mandatory !='' :
+            if mandatory.strip() !='' :
                 is_mandatory = str(mandatory).lower()
                 if is_mandatory == 'y':
                     primary_key = col_name
@@ -305,37 +306,38 @@ def create_SCRI_input_view(smx_model, environment):
                             print("BM_column:    "+  col_name)
             else :
                 Source_columns.append(f"SOURCE.{col_name}")
-                conditions.append(f"SOURCE.{col_name} IS NOT NULL \n")
+                conditions.append(f"SOURCE.{col_name} IS NOT NULL")
         # end of row loop 
-        source_columns_str = ",\n".join(Source_columns)
+        # i have added empty string here to the end of  Source_columns list to always add comme and new line at the end of SK columns
+        source_columns_str = ",\n".join(Source_columns+ [""])
         BKscolumns_str = ",\n".join(BKscolumns)
         BMscolumns_str = ",\n".join(BMscolumns)
-        joins_BKs_script_str = ",\n".join(joins_BKs_script)
-        joins_BM_script_str = ",\n".join(joins_BM_script)
+        
+        joins_BKs_script_str = "\n".join(joins_BKs_script)
+        joins_BM_script_str = "\n".join(joins_BM_script)
         conditions_str = "\n OR ".join(conditions)
         #  ------------------- create Scrpit for current table ------------------------------
-        create_stmnt = f"""
-            REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR  ACCESS 
-        SELECT
-        {source_columns_str},
-        SOURCE.Start_Ts,
-        SOURCE.End_Ts,
-        SOURCE.Start_Date,
-        SOURCE.End_Date,
-        SOURCE.Record_Deleted_Flag,
-        SOURCE.Ctl_Id, 
-        SOURCE.File_Id,
-        SOURCE.Process_Name,
-        SOURCE.Process_Id,
-        SOURCE.Update_Process_Name,
-        SOURCE.Update_Process_Id,
-        1 AS GCFR_DELTA_ACTION_CODE, 
-        {BKscolumns_str}           
-        {BMscolumns_str}
-        FROM G{environment}1V_STG.{table_name_stg} SOURCE
-        {joins_BKs_script_str}
-        {joins_BM_script_str}
-        WHERE {conditions_str};
+        create_stmnt = f"""REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR ACCESS 
+SELECT
+{source_columns_str}
+SOURCE.START_TS,
+SOURCE.END_TS,
+SOURCE.START_DATE,
+SOURCE.END_DATE,
+SOURCE.RECORD_DELETED_FLAG,
+SOURCE.CTL_ID,
+SOURCE.FILE_ID,
+SOURCE.PROCESS_NAME,
+SOURCE.PROCESS_ID,
+SOURCE.UPDATE_PROCESS_NAME,
+SOURCE.UPDATE_PROCESS_ID,
+1 AS GCFR_DELTA_ACTION_CODE,
+{BKscolumns_str}           
+{BMscolumns_str}
+FROM G{environment}1V_STG.{table_name_stg} SOURCE
+{joins_BKs_script_str}
+{joins_BM_script_str}
+WHERE {conditions_str};
         """  
         sql_scripts.append(create_stmnt.strip())
     return "\n\n".join(sql_scripts)
@@ -356,7 +358,9 @@ def create_core_table(smx_model, environment):
             col_name = row['column name']
             col_type = row['data type']
             mandatory = row['mandatory']
-            if mandatory!='' :
+
+            # ALL mandatory OR PK columns must be not null  (unique)
+            if mandatory.strip() !='' :
                 is_mandatory = str(mandatory).lower()
                 if is_mandatory == 'y':
                     columns.append(f"{col_name} {col_type} NOT NULL")
@@ -377,17 +381,17 @@ def create_core_table(smx_model, environment):
         CREATE MULTISET TABLE G{environment}1T_CORE.{table_name}
     (
         {column_definitions},
-        Start_Ts TIMESTAMP(6) WITH TIME ZONE,
-        End_Ts TIMESTAMP(6) WITH TIME ZONE,
-        Start_Date DATE FORMAT 'YYYY-MM-DD',
-        End_Date DATE FORMAT 'YYYY-MM-DD',
-        Record_Deleted_Flag BYTEINT,
-        Ctl_Id SMALLINT COMPRESS 997,
-        File_Id SMALLINT COMPRESS 997,
-        Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-        Process_Id INTEGER,
-        Update_Process_Name VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
-        Update_Process_Id INTEGER
+        START_TS TIMESTAMP(6) WITH TIME ZONE,
+        END_TS TIMESTAMP(6) WITH TIME ZONE,
+        START_DATE DATE FORMAT 'YYYY-MM-DD',
+        END_DATE DATE FORMAT 'YYYY-MM-DD',
+        RECORD_DELETED_FLAG BYTEINT,
+        CTL_ID SMALLINT COMPRESS 997,
+        FILE_ID SMALLINT COMPRESS 997,
+        PROCESS_NAME VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        PROCESS_ID INTEGER,
+        UPDATE_PROCESS_NAME VARCHAR(128) CHARACTER SET LATIN NOT CASESPECIFIC,
+        UPDATE_PROCESS_ID INTEGER
     )PRIMARY INDEX ({",".join(primary_key)});
     """
         sql_scripts.append(create_stmnt.strip())
@@ -417,68 +421,148 @@ def create_core_input_view(smx_model,environment):
     # filter core tables by selected mapping names
     core_tables_df=core_tables_df[core_tables_df['table name'].isin(table_mapping_df['target table name'])]
     column_mapping_df = smx_model['column mapping']
-
     sql_scripts =[]
-    for target_table_name , df in table_mapping_df.groupby('target table name'):
-        # looping on mapping names 
-        for _,row in df.iterrows():
-            mapping_name = row['mapping name']
-            main_source = row['main source']
-            cast_columns_list=[]
-            
-            # filter column_mapping_df by current mapping name only
-            column_mapping_df = column_mapping_df[column_mapping_df['mapping name']==mapping_name]
-            process_name = f"TX_{mapping_name}"
-            historization_algorithm= row['historization algorithm']
-            # print("Row type:", type(historization_algorithm))
-            mapped_to_table = row['mapped to']
-
-            if str(historization_algorithm).upper() == "INSERT":
-                select_stmnt = "1 AS GCFR_DELTA_ACTION_CODE"
-            # in case of UPSERT  &  HISTORY
-            else:
-                select_stmnt=f"""(SELECT BUSINESS_DATE FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Start_Date,
-                    DATE '9999-09-09' AS End_Date,
-                    CASE WHEN PARTY.PARTY_ID IS NULL THEN 0 ELSE 1 END AS Record_Deleted_Flag,
-                    (SELECT Ctl_Id FROM G{environment}1V_GCFR.GCFR_Process WHERE PROCESS_NAME='{process_name}') AS Ctl_Id,
-                    '{process_name}' AS Process_Name,
-                    (SELECT Process_ID FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Process_ID,
-                    NULL AS update_Process_Name,
-                    NULL AS update_Process_Id, """
-
-            for _, row in column_mapping_df.iterrows():
-                transformation_type = row['transformation type'].lower()  
-                mapped_to_column = row['mapped to column'] 
-                column_name = row['column name'] 
-                # get the data type of column name in column mapping from core table 
-                data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]
-                if(transformation_type == 'copy'): 
-                    cast_columns_list.append(f"CAST({mapped_to_column} AS {data_type}) AS {column_name}")
-
-                elif(transformation_type=='sql'):
-                    transformation_rule = row['transformation rule']
-                    cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
-                
-                elif(transformation_type=='const'):
-                    transformation_rule = row['transformation rule']
-                    if pd.isna(transformation_rule):
-                        # If it's NaN, use NULL string
-                        transformation_rule = "NULL"
-                    cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
-
-            cast_columns_stmnt = ",\n  ".join(cast_columns_list)
-
-            create_stmnt =  f"""
-            REPLACE VIEW G{environment}1V_INP.TX_{mapping_name} AS LOCK ROW FOR ACCESS
-            SELECT DISTINCT
-            /* Target Table: 	{target_table_name} */
-            /* Table Mapping:	{mapping_name} */
-            /*Source Table:		{main_source} */
-            {cast_columns_stmnt},
-            {select_stmnt}
-            FROM G{environment}1V_SRCI.{mapped_to_table} A;
-        """
     
-            sql_scripts.append(create_stmnt.strip())
+    # looping on mapping names 
+    for _,row in table_mapping_df.iterrows():
+        target_table_name=row['target table name']
+        mapping_name = row['mapping name']
+        main_source = f"{row['main source']} A"
+        cast_columns_list=[]
+        
+        # filter column_mapping_df by current mapping name only
+        column_mapping_df = column_mapping_df[column_mapping_df['mapping name'] == mapping_name]
+        process_name = f"TX_{mapping_name}"
+        historization_algorithm= row['historization algorithm'].upper()
+        mapped_tables_aliases={}    
+        mapped_to_table = row['mapped to']
+        
+        # add main source table and allso mapped to table to dictionary of tables aliases
+
+        for item in mapped_to_table.split(","):
+            parts = item.strip().split()
+            if len(parts) == 2:
+                key, value = parts
+                mapped_tables_aliases[key] = value
+
+        for item in main_source.split(","):
+            parts = item.strip().split()
+            if len(parts) == 2:
+                key, value = parts
+                mapped_tables_aliases[key] = value
+
+        # mapped_to_table_parts = [item.strip().split() for item in str(mapped_to_table).split(",")]
+        # main_source_parts = [item.strip().split() for item in str(main_source).split(",")]
+
+        # for parts in mapped_to_table_parts + main_source_parts:
+        #     if len(parts) == 2:
+        #         key, value = parts
+        #         mapped_tables_aliases[key] = value
+
+        joins = f"{row['join']}" if row['join'].strip() !='' else '' 
+        Filter_criterion = f"WHERE {row['filter criterion']}" if row['filter criterion'].strip() !='' else ''
+
+        counter=0
+        Counter_list=[]
+        found_aggregat = False    
+        join_on_pk_columnn=[]
+        for _, row in column_mapping_df.iterrows():
+
+            transformation_type = row['transformation type'].upper()  
+            mapped_to_column = row['mapped to column'] 
+            mapped_to_table = row['mapped to table']
+            transformation_rule = str(row['transformation rule']).upper() 
+            column_name = row['column name'] 
+
+# ###  i can't add alias to column that isn't existed in the cplumn mapping sheet ---> so mapper should fill in transformation_rule only with aliases
+            # if transformation_rule!='' :
+            #     transformation_rule = transformation_rule.replace(mapped_to_column, alias + '.' + mapped_to_column) 
+
+
+
+            if mapped_to_table.strip() !=''  and len(mapped_tables_aliases) > 0 : 
+                alias = mapped_tables_aliases[mapped_to_table] 
+                mapped_to_column = alias + '.' + mapped_to_column   
+            else:
+                mapped_to_column = mapped_to_column
+
+            # get the data type of column name in column mapping from core table   
+            data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]    
+                
+            if historization_algorithm != 'INSERT' :
+                # Other columns (not PK) must be CONST value and not null  => we need to add them in joins to make it faster to join 
+                if  transformation_type == "CONST" and transformation_rule != "NULL": 
+                    join_on_pk_columnn.append(f""" Z.{column_name} = {transformation_rule}""")
+                    
+                pk = core_tables_df[(core_tables_df['column name'] == column_name)]['pk'].iloc[0] 
+                # Always we will have PK column ends with ID which can't have const 
+                if pk.lower() == 'y' and  column_name.upper().endswith('_ID') :
+                    PK_column = column_name 
+                    # if column is PK  it must have mapped to column
+                    join_on_pk_columnn.append(f""" Z.{column_name} = {mapped_to_column}""")
+
+
+            counter+=1 
+            Counter_list.append(counter)
+            if(transformation_type == 'COPY'): 
+                cast_columns_list.append(f"CAST({mapped_to_column} AS {data_type}) AS {column_name}")
+
+            elif(transformation_type == 'SQL'):
+
+                cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+                # in case we have aggregate function in transformation rule, we should make group by all columns numbers except the column with aggregate
+                aggregations =[ 'AVG', 'MIN', 'MAX', 'COUNT' , 'SUM']
+                matches = [agg for agg in aggregations if agg.upper() in transformation_rule.upper()]
+
+                if matches :
+                    found_aggregat=True
+                    Counter_list.pop()
+                
+            
+            elif(transformation_type=='CONST'):
+                if pd.isna(transformation_rule):
+                    # If it's NaN, use NULL string
+                    transformation_rule = "NULL"
+                cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
+        
+        temp = f"LEFT JOIN G{environment}1V_CORE.{target_table_name} AS Z ON "
+        pk_joins_stmnt = temp+" AND \n".join(join_on_pk_columnn) if join_on_pk_columnn else ''
+
+
+        cast_columns_stmnt = ",\n  ".join(cast_columns_list)
+        groub_by_stmnt=""
+        if found_aggregat :
+            groub_by_stmnt = f"GROUP BY {', '.join(str(x) for x in Counter_list)}" 
+        if str(historization_algorithm) == "INSERT":
+            select_stmnt = "1 AS GCFR_DELTA_ACTION_CODE"
+        # in case of UPSERT  &  HISTORY
+        else:
+            select_stmnt=f"""(SELECT BUSINESS_DATE FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Start_Date,
+                DATE '9999-09-09' AS End_Date,
+                CASE WHEN {target_table_name}.{PK_column} IS NULL THEN 0 ELSE 1 END AS Record_Deleted_Flag,
+                (SELECT Ctl_Id FROM G{environment}1V_GCFR.GCFR_Process WHERE PROCESS_NAME='{process_name}') AS Ctl_Id,
+                '{process_name}' AS Process_Name,
+                (SELECT Process_ID FROM G{environment}1V_GCFR.GCFR_PROCESS_ID WHERE PROCESS_NAME='{process_name}') AS Process_ID,
+                NULL AS update_Process_Name,
+                NULL AS update_Process_Id """ 
+
+
+        create_stmnt =  f"""
+        REPLACE VIEW G{environment}1V_INP.TX_{mapping_name} AS LOCK ROW FOR ACCESS
+        SELECT DISTINCT
+        /* Target Table: 	{target_table_name} */
+        /* Table Mapping:	{mapping_name} */
+        /*Source Table:		{main_source} */
+        {cast_columns_stmnt},
+        {select_stmnt}
+        FROM G{environment}1V_SRCI.{main_source}
+        {joins}
+        {pk_joins_stmnt}
+        {groub_by_stmnt}
+        {Filter_criterion};
+    """
+# TODO : we might have several tables to join with 
+        sql_scripts.append(create_stmnt.strip())
     return "\n\n".join(sql_scripts)
+
 
