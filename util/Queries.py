@@ -458,6 +458,7 @@ def create_core_input_view(smx_model,environment):
         Counter_list=[]
         found_aggregat = False    
         join_on_pk_columnn=[]
+        PK_column = ''
         for _, row in column_mapping_df.iterrows():
 
             transformation_type = row['transformation type'].upper()  
