@@ -11,7 +11,7 @@ import sys
 from colorama import init, Fore, Back, Style
 init(autoreset=True)  # Initialize colorama
 from itertools import chain  
-import regex as re
+# import regex as re
 import psutil
 import os
 from util import Queries
