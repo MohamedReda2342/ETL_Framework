@@ -13,8 +13,8 @@ class CurrentEnv:
 
     self.BIGINT_Flag = str(bi_flag) 
 
-    #GDEV1T_GCFR	GCFR Standard Tables
-    #GDEV1V_GCFR	GCFR Standard Views
+  #GDEV1T_GCFR	GCFR Standard Tables
+  #GDEV1V_GCFR	GCFR Standard Views
 
     
     self.Key_Table_DB_Name= "G"+env+"1T_UTLFW"
@@ -25,7 +25,7 @@ class CurrentEnv:
 
     #self.GCFR_Standard_Macros = 'G'+env+'1M_GCFR'
     self.GCFR_Standard_Utility_Stored_Procedure ='G'+env+'1P_UT'
-    self.GCFR_Standard_Processing_Pattern_Stored_Procedure =  "G"+env+"1_PP"
+    self.GCFR_Standard_Processing_Pattern_Stored_Procedure =  "G"+env+"1P_PP"
     
     self.Staging_Tables = "G"+str(env)+"T_STG"
     self.Staging_Tables_Views = "G"+env+"1V_STG"
@@ -73,11 +73,24 @@ class CurrentEnv:
     
     
     self.SRCI_File_Qualifier_Reset_Flag=0
-    self.SRCI_Key_Set_ID =""
-    self.SRCI_Domain_Id =""
-    self.SRCI_Code_Set_Id =""
+    self.SRCI_Key_Set_ID = None  
+    self.SRCI_Domain_Id = None  
+    self.SRCI_Code_Set_Id = None  
+# CORE stuff
 
-    # Get the current date
+    self.CORE_Out_DB_Name = "G"+env+ "1V_CORE" 
+    self.CORE_Target_TableDatabaseName = "G"+env+"1T_CORE" 
+
+    self.CORE_Collect_Stats =0
+    self.CORE_Truncate_Target =0
+    self.CORE_Verification_Flag =1
+    self.CORE_File_Qualifier_Reset_Flag = 0
+
+    self.CORE_Process_Type_INSERT =25
+    # --INSERT-- --Process_Type = 25 --Verification_Flag = 1
+
+# Get the current date
     self.Business_Date = date.today()
     self.Process_Type = 21
+
 

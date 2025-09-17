@@ -451,14 +451,6 @@ def create_core_input_view(smx_model,environment):
                 key, value = parts
                 mapped_tables_aliases[key] = value
 
-        # mapped_to_table_parts = [item.strip().split() for item in str(mapped_to_table).split(",")]
-        # main_source_parts = [item.strip().split() for item in str(main_source).split(",")]
-
-        # for parts in mapped_to_table_parts + main_source_parts:
-        #     if len(parts) == 2:
-        #         key, value = parts
-        #         mapped_tables_aliases[key] = value
-
         joins = f"{row['join']}" if row['join'].strip() !='' else '' 
         Filter_criterion = f"WHERE {row['filter criterion']}" if row['filter criterion'].strip() !='' else ''
 
@@ -474,9 +466,10 @@ def create_core_input_view(smx_model,environment):
             transformation_rule = str(row['transformation rule']).upper() 
             column_name = row['column name'] 
 
-# ###  i can't add alias to column that isn't existed in the cplumn mapping sheet ---> so mapper should fill in transformation_rule only with aliases
-            # if transformation_rule!='' :
-            #     transformation_rule = transformation_rule.replace(mapped_to_column, alias + '.' + mapped_to_column) 
+# TODO : #  i can't add alias to column that isn't existed in the cplumn mapping sheet ---> so mapper should fill in transformation_rule only with aliases
+
+            if transformation_rule!='' and transformation_type.upper()=="SQL" :
+                transformation_rule = transformation_rule.replace(mapped_to_column, alias + '.' + mapped_to_column) 
 
 
 
@@ -489,6 +482,7 @@ def create_core_input_view(smx_model,environment):
             # get the data type of column name in column mapping from core table   
             data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]    
                 
+        
             if historization_algorithm != 'INSERT' :
                 # Other columns (not PK) must be CONST value and not null  => we need to add them in joins to make it faster to join 
                 if  transformation_type == "CONST" and transformation_rule != "NULL": 

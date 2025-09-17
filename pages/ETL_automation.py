@@ -261,7 +261,7 @@ if uploaded_file is not None:
         )
         
     selected_core_table = core_tables_options if selected_core_table == "All" else [selected_core_table]
-
+    table_mapping_sheet = table_mapping_sheet[table_mapping_sheet['process activation flag']=='Y']
     with selected_mapping_name:
         if (selected_core_table and not disable_core_tables):
             all_mapping_names = table_mapping_sheet[table_mapping_sheet['target table name'].isin(selected_core_table)]['mapping name'].unique().tolist() 
@@ -318,7 +318,7 @@ if uploaded_file is not None:
             "table mapping": filtered_table_mapping_df,
             "column mapping": filtered_column_mapping_df,
         }
-    st.write(filtered_table_mapping_df)
+
     smx_model = {k.lower(): v for k, v in Dict.items()}
     # Process each DataFrame: lowercase
     for key in smx_model:
