@@ -23,7 +23,7 @@ with st.sidebar:
         st.session_state['uploaded_file'] = uploaded_file
     elif 'uploaded_file' in st.session_state:
         uploaded_file = st.session_state['uploaded_file']
-    
+        
     authenticator.logout('Logout', 'sidebar')
 
 # Process the file when uploaded

@@ -14,7 +14,8 @@ from itertools import chain
 # import regex as re
 import psutil
 import os
-from util import Queries
+from util import Queries 
+from util import df_utlis
 
 def load_script_model():
     obj = pd.read_pickle(r'pickled_df/bkey_functions.pkl')
@@ -911,8 +912,8 @@ def main(smx_model, key_type, env , bigint_flag):
                 print(table_name)
                 print(values)
                 stmnt = f"""
-    SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
-    DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
+SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
+DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
                     """
                 if isinstance(values, list):
                     script2 += stmnt
@@ -930,7 +931,9 @@ def main(smx_model, key_type, env , bigint_flag):
             #smx_model= smx_preprocess(smx_model, 'core tables', f'PK==Y')
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
 
-        case "HIST_REG" :
+        case "HIST_REG" :# STG tables".lower():
+            print("key type = ", key_type)
+            print(env_attributes)
             
             condition= "['historization key'].notnull()"
             smx_model= smx_preprocess(smx_model, 'core tables', condition)
@@ -938,12 +941,22 @@ def main(smx_model, key_type, env , bigint_flag):
             print(filtered_script_df['preprocessing'].dropna().unique())
             conditions= filtered_script_df['preprocessing'].dropna().unique()
             print(conditions)
-           
+            #sys.exit(0)
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
+            
             print("======================= returned script : ")
             print(script)
             for s in script:
                 print(Back.LIGHTGREEN_EX+ str(s))
+            
+            print(type(smx_model))
+            print(smx_model.keys())
+            print(smx_model['core tables'])
+            
+            script_dict= get_core_script_dict(script, smx_model)
+            stmnt = """SELECT * FROM GD{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';
+DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';  """
+            script = df_utlis.add_sql_to_dictionary(script_dict,env,stmnt)
         case "bkey_views":
             script = Queries.generate_bkey_views(smx_model,env)
         case "Insert BMAP values":
