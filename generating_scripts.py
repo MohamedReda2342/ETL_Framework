@@ -912,8 +912,8 @@ def main(smx_model, key_type, env , bigint_flag):
                 print(table_name)
                 print(values)
                 stmnt = f"""
-SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
-DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}';
+SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}'AND OUT_DB_NAME = 'G{env}1V_CORE';
+DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_name}'AND OUT_DB_NAME = 'G{env}1V_CORE';
                     """
                 if isinstance(values, list):
                     script2 += stmnt
@@ -954,7 +954,7 @@ DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_
             print(smx_model['core tables'])
             
             script_dict= get_core_script_dict(script, smx_model)
-            stmnt = """SELECT * FROM GD{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';
+            stmnt = """SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';
 DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';  """
             script = df_utlis.add_sql_to_dictionary(script_dict,env,stmnt)
         case "bkey_views":

@@ -264,10 +264,29 @@ def create_SCRI_input_view(smx_model, environment):
         conditions=[]
         joins_BKs_script=[]
 
-        # looping on every row in the current table
+        # Build a mapping from STG column names to “SOURCE.<col>” aliases
+        col_names = group['column name stg'].tolist()
+        natural_keys = group['natural key'].str.strip().tolist()
+        # Replace every natural-key placeholder with its SOURCE-qualified column
+        for col in col_names:
+            if col in natural_keys:  # natural key exists as a column
+                # natural_keys[natural_keys.index(col)] = f"SOURCE.{col}"
+
+                group['natural key'].replace(col, f"SOURCE.{col}", inplace=True)
+                
+                # print(group[group['natural key']==col])
+            else:
+                target = f" {col} "
+                for nk in natural_keys:
+                    if target in nk:
+                        temp = nk.replace(target, f" SOURCE.{col} ")
+                        group['natural key'].replace(nk, temp, inplace=True)
+
+
+        # natural_keys list is now ready to be used in JOIN conditions
         for _, row in group.iterrows():
             # from STG tables we will get natural key  of the current SK
-            natural_key=row['natural key']
+            natural_key=row['natural key'].strip()
             # From filtered_bkey_df we will get physical table & key domain id using key set name & key domain name of the current row
             matched_row = filterd_bkey_df.loc[
                 (filterd_bkey_df['key set name'] == row['key set name']) & 
@@ -281,16 +300,16 @@ def create_SCRI_input_view(smx_model, environment):
             col_name = row['column name stg']
             # we need to check for key set name & key domain id & natural key  not null 
             if col_name.upper().startswith('SK_'):
-                if natural_key and  row["key set name"] and row["key domain name"]:
+                if natural_key!='' and  row["key set name"] and row["key domain name"]:
                     # --------- Left joins -------------
-                    joins_BKs_script.append(f"LEFT JOIN G{environment}1V_UTLFW.{physical_table} BK{SK_counter} ON SOURCE.{natural_key} = BK{SK_counter}.SOURCE_KEY AND BK{SK_counter}.DOMAIN_ID = {key_domain_id}")
+                    joins_BKs_script.append(f"LEFT JOIN G{environment}1V_UTLFW.{physical_table} BK{SK_counter} ON {natural_key} = BK{SK_counter}.SOURCE_KEY AND BK{SK_counter}.DOMAIN_ID = {key_domain_id}")
                     
                     BKscolumns.append(f"BK{SK_counter}.EDW_KEY AS {col_name}") 
                     SK_counter += 1
                     print("SK_column:    "+  col_name)
             # we need to check for code set name & code domain id & natural key  not null 
             elif col_name.upper().startswith('BM_') :
-                if natural_key and  row["code set name"] and row["code domain name"]:
+                if natural_key!='' and  row["code set name"] and row["code domain name"]:
                         # From BMAP we will get code set id && code domain id   using code set name && code domain name    of the current BM
                         bmap_match = filterd_bmap_df.loc[
                             (filterd_bmap_df['code set name'] == row["code set name"]) &
@@ -300,7 +319,7 @@ def create_SCRI_input_view(smx_model, environment):
                             code_domain_id = bmap_match['code domain id'].iloc[0]
                             code_set_id = bmap_match['code set id'].iloc[0]
                             # --------- Left joins -------------
-                            joins_BM_script.append(f"LEFT JOIN G{environment}1V_UTLFW.BMAP_STANDARD_MAP BM{BM_counter} ON SOURCE.{natural_key} = BM{BM_counter}.SOURCE_CODE AND BM{BM_counter}.CODE_SET_ID = {code_set_id} AND BM{BM_counter}.DOMAIN_ID = {code_domain_id}")
+                            joins_BM_script.append(f"LEFT JOIN G{environment}1V_UTLFW.BMAP_STANDARD_MAP BM{BM_counter} ON {natural_key} = BM{BM_counter}.SOURCE_CODE AND BM{BM_counter}.CODE_SET_ID = {code_set_id} AND BM{BM_counter}.DOMAIN_ID = {code_domain_id}")
                             BMscolumns.append(f"BM{BM_counter}.EDW_CODE AS {col_name}")
                             BM_counter += 1
                             print("BM_column:    "+  col_name)
@@ -310,7 +329,7 @@ def create_SCRI_input_view(smx_model, environment):
         # end of row loop 
         # i have added empty string here to the end of  Source_columns list to always add comme and new line at the end of SK columns
         source_columns_str = ",\n".join(Source_columns+ [""])
-        BKscolumns_str = ",\n".join(BKscolumns)
+        BKscolumns_str = ",\n".join(BKscolumns)+ ",\n" if len(BMscolumns)>0 else ",\n".join(BKscolumns)
         BMscolumns_str = ",\n".join(BMscolumns)
         
         joins_BKs_script_str = "\n".join(joins_BKs_script)
@@ -413,88 +432,71 @@ def create_core_table_view(smx_model, environment):
 
 
 # Data will be passed filtered from UI  
-def create_core_input_view(smx_model,environment):
+def create_core_input_view(smx_model,environment):  
     # table_mapping_df and column_mapping_df  is already filtered from interface
     table_mapping_df = smx_model['table mapping']
     # Exclude lookups (tables without subject area)
-    core_tables_df = smx_model['core tables'].dropna(subset=['subject area','table name'])
-    # filter core tables by selected mapping names
-    core_tables_df=core_tables_df[core_tables_df['table name'].isin(table_mapping_df['target table name'])]
-    column_mapping_df = smx_model['column mapping']
+    core_tables_df_original = smx_model['core tables'].dropna(subset=['subject area','table name'])
+
+    column_mapping_df_original = smx_model['column mapping']
     sql_scripts =[]
     
     # looping on mapping names 
     for _,row in table_mapping_df.iterrows():
         target_table_name=row['target table name']
         mapping_name = row['mapping name']
-        main_source = f"{row['main source']} A"
+        main_source = f"{row['main source']}"
         cast_columns_list=[]
         
         # filter column_mapping_df by current mapping name only
-        column_mapping_df = column_mapping_df[column_mapping_df['mapping name'] == mapping_name]
+        column_mapping_df = column_mapping_df_original[column_mapping_df_original['mapping name'] == mapping_name]
+        # To avoid duplicate columns in "ALL" mapping names option   eg:EMPLOYMENT_START_DTTM exists in 2 tables and make error when checking for pk
+        core_tables_df = core_tables_df_original[core_tables_df_original['table name'] == target_table_name]
         process_name = f"TX_{mapping_name}"
         historization_algorithm= row['historization algorithm'].upper()
-        mapped_tables_aliases={}    
         mapped_to_table = row['mapped to']
-        
-        # add main source table and allso mapped to table to dictionary of tables aliases
-
-        for item in mapped_to_table.split(","):
-            parts = item.strip().split()
-            if len(parts) == 2:
-                key, value = parts
-                mapped_tables_aliases[key] = value
-
-        for item in main_source.split(","):
-            parts = item.strip().split()
-            if len(parts) == 2:
-                key, value = parts
-                mapped_tables_aliases[key] = value
 
         joins = f"{row['join']}" if row['join'].strip() !='' else '' 
         Filter_criterion = f"WHERE {row['filter criterion']}" if row['filter criterion'].strip() !='' else ''
+
+        # Create a lookup dictionary once for core tables primary keys (more efficient for multiple lookups)
+        pk_lookup = dict(zip(core_tables_df['column name'], core_tables_df['pk']))
 
         counter=0
         Counter_list=[]
         found_aggregat = False    
         join_on_pk_columnn=[]
         PK_column = ''
+        # ----------------------------------------------  Column Mapping loop ----------------------------------------------
         for _, row in column_mapping_df.iterrows():
 
             transformation_type = row['transformation type'].upper()  
-            mapped_to_column = row['mapped to column'] 
-            mapped_to_table = row['mapped to table']
+            mapped_to_column = row['mapped to column']  # column name in the source table 
+            
+            mapped_to_table = row['mapped to table']    # table name in the source table 
             transformation_rule = str(row['transformation rule']).upper() 
-            column_name = row['column name'] 
+            column_name = row['column name'] # column name in the target tabel
 
-# TODO : #  i can't add alias to column that isn't existed in the cplumn mapping sheet ---> so mapper should fill in transformation_rule only with aliases
+                
+            # adding Alias to columns in the transformation rule 
+            if transformation_rule!='' and transformation_type.upper()!= "CONST" and mapped_to_table !='':
+                transformation_rule = transformation_rule.replace(mapped_to_column, mapped_to_table + '.' + mapped_to_column) 
+            # adding Alias to the source columns  
+            mapped_to_column = mapped_to_table + '.' + mapped_to_column   if mapped_to_table.strip() !='' else mapped_to_column
 
-            if transformation_rule!='' and transformation_type.upper()=="SQL" :
-                transformation_rule = transformation_rule.replace(mapped_to_column, alias + '.' + mapped_to_column) 
-
-
-
-            if mapped_to_table.strip() !=''  and len(mapped_tables_aliases) > 0 : 
-                alias = mapped_tables_aliases[mapped_to_table] 
-                mapped_to_column = alias + '.' + mapped_to_column   
-            else:
-                mapped_to_column = mapped_to_column
-
-            # get the data type of column name in column mapping from core table   
+            # get the data type of column name in column mapping sheet from core table  sheet
             data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]    
                 
+            #TODO : not working in first and second
+            if 'timestamp' in data_type.lower() or 'datetime' in data_type.lower() :
+                column_name = column_name+" FORMAT 'YYYYMMDD'"
         
-            if historization_algorithm != 'INSERT' :
-                # Other columns (not PK) must be CONST value and not null  => we need to add them in joins to make it faster to join 
-                if  transformation_type == "CONST" and transformation_rule != "NULL": 
-                    join_on_pk_columnn.append(f""" Z.{column_name} = {transformation_rule}""")
-                    
-                pk = core_tables_df[(core_tables_df['column name'] == column_name)]['pk'].iloc[0] 
-                # Always we will have PK column ends with ID which can't have const 
-                if pk.lower() == 'y' and  column_name.upper().endswith('_ID') :
-                    PK_column = column_name 
-                    # if column is PK  it must have mapped to column
-                    join_on_pk_columnn.append(f""" Z.{column_name} = {mapped_to_column}""")
+            if historization_algorithm != 'INSERT' :    
+                pk = pk_lookup.get(column_name)
+                if pk and str(pk).lower() == 'y' and column_name.upper().endswith('_ID'):
+                    PK_column = column_name
+                    if mapped_to_column:
+                        join_on_pk_columnn.append(f"{target_table_name}.{column_name} = {mapped_to_column}")
 
 
             counter+=1 
@@ -506,26 +508,28 @@ def create_core_input_view(smx_model,environment):
 
                 cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
                 # in case we have aggregate function in transformation rule, we should make group by all columns numbers except the column with aggregate
-                aggregations =[ 'AVG', 'MIN', 'MAX', 'COUNT' , 'SUM']
+                # TODO : also make sure this aggregatesare all we search for 
+                aggregations =[ 'AVG(','AVG (','MIN(','MIN (','MAX(','MAX (','COUNT(','COUNT (', 'SUM(']
                 matches = [agg for agg in aggregations if agg.upper() in transformation_rule.upper()]
 
                 if matches :
                     found_aggregat=True
                     Counter_list.pop()
-                
             
             elif(transformation_type=='CONST'):
-                if pd.isna(transformation_rule):
-                    # If it's NaN, use NULL string
-                    transformation_rule = "NULL"
+                if transformation_rule != 'NULL' and not transformation_rule.isnumeric():
+                    transformation_rule = f"'{transformation_rule}'"
                 cast_columns_list.append(f"CAST({transformation_rule} AS {data_type}) AS {column_name}")
         
-        temp = f"LEFT JOIN G{environment}1V_CORE.{target_table_name} AS Z ON "
+        temp = f"LEFT JOIN G{environment}1V_CORE.{target_table_name} AS {target_table_name} ON "
         pk_joins_stmnt = temp+" AND \n".join(join_on_pk_columnn) if join_on_pk_columnn else ''
 
 
         cast_columns_stmnt = ",\n  ".join(cast_columns_list)
         groub_by_stmnt=""
+        # add number of Technical columns (11 column)
+        Counter_list =  Counter_list + list(range(counter+1, counter+9))
+
         if found_aggregat :
             groub_by_stmnt = f"GROUP BY {', '.join(str(x) for x in Counter_list)}" 
         if str(historization_algorithm) == "INSERT":
@@ -541,7 +545,6 @@ def create_core_input_view(smx_model,environment):
                 NULL AS update_Process_Name,
                 NULL AS update_Process_Id """ 
 
-
         create_stmnt =  f"""
         REPLACE VIEW G{environment}1V_INP.TX_{mapping_name} AS LOCK ROW FOR ACCESS
         SELECT DISTINCT
@@ -550,11 +553,11 @@ def create_core_input_view(smx_model,environment):
         /*Source Table:		{main_source} */
         {cast_columns_stmnt},
         {select_stmnt}
-        FROM G{environment}1V_SRCI.{main_source}
+        FROM G{environment}1V_SRCI.{main_source} AS {main_source}
         {joins}
         {pk_joins_stmnt}
-        {groub_by_stmnt}
-        {Filter_criterion};
+        {Filter_criterion}
+        {groub_by_stmnt};
     """
 # TODO : we might have several tables to join with 
         sql_scripts.append(create_stmnt.strip())

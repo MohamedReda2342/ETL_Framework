@@ -261,7 +261,7 @@ if uploaded_file is not None:
         )
         
     selected_core_table = core_tables_options if selected_core_table == "All" else [selected_core_table]
-    table_mapping_sheet = table_mapping_sheet[table_mapping_sheet['process activation flag']=='Y']
+    # table_mapping_sheet = table_mapping_sheet[table_mapping_sheet['process activation flag']=='Y']
     with selected_mapping_name:
         if (selected_core_table and not disable_core_tables):
             all_mapping_names = table_mapping_sheet[table_mapping_sheet['target table name'].isin(selected_core_table)]['mapping name'].unique().tolist() 
@@ -314,11 +314,11 @@ if uploaded_file is not None:
             "stream" : filtered_stream,
             "bmap values" : filtered_bmap_values_df,
             "bmap" : filtered_bmap_df,
-            "core tables": filtered_core_tables_df,
+            "core tables": filtered_core_tables_df, 
             "table mapping": filtered_table_mapping_df,
             "column mapping": filtered_column_mapping_df,
         }
-
+    st.write(filterd_STG_tables_df[filterd_STG_tables_df['natural key']=='CARD_UID'])
     smx_model = {k.lower(): v for k, v in Dict.items()}
     # Process each DataFrame: lowercase
     for key in smx_model:
