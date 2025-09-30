@@ -494,7 +494,8 @@ def create_core_input_view(smx_model,environment):
             if historization_algorithm != 'INSERT' :    
                 pk = pk_lookup.get(column_name)
                 if pk and str(pk).lower() == 'y' :
-                    PK_column = column_name
+                    if str(column_name).lower().endswith('_id'):
+                        PK_column = column_name
                     if mapped_to_column:
                         join_on_pk_columnn.append(f"{target_table_name}.{column_name} = {mapped_to_column}")
 
