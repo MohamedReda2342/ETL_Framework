@@ -488,12 +488,12 @@ def create_core_input_view(smx_model,environment):
             data_type = core_tables_df[(core_tables_df['column name'] == column_name) ]['data type'].iloc[0]    
                 
             #TODO : not working in first and second
-            if 'timestamp' in data_type.lower() or 'datetime' in data_type.lower() :
+            if 'timestamp' in data_type.lower() or 'date' in data_type.lower() :
                 column_name = column_name+" FORMAT 'YYYYMMDD'"
         
             if historization_algorithm != 'INSERT' :    
                 pk = pk_lookup.get(column_name)
-                if pk and str(pk).lower() == 'y' and column_name.upper().endswith('_ID'):
+                if pk and str(pk).lower() == 'y' :
                     PK_column = column_name
                     if mapped_to_column:
                         join_on_pk_columnn.append(f"{target_table_name}.{column_name} = {mapped_to_column}")
