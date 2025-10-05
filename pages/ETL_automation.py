@@ -246,8 +246,8 @@ if uploaded_file is not None:
     selected_core_table , selected_mapping_name = st.columns(2)
     with selected_core_table:
         # core tables without lookups (core table that doesn't have subject area )
-        core_tables_options = core_tables_sheet.replace('', pd.NA).dropna(subset=['subject area'])
-        if selected_action=="HIST_REG":        
+        core_tables_options = core_tables_options[core_tables_options['subject area'].str.upper() != 'LKP']
+        if selected_action=="HIST_REG":
             core_tables_options = core_tables_options[core_tables_options['historization key'].isin(['STRT_DT','HIST','END_DT'])]['table name'].unique().tolist()
         else:
             core_tables_options = core_tables_options['table name'].unique().tolist()
@@ -430,3 +430,6 @@ if uploaded_file is not None:
 #------------------------------------------------------------------------------------------------------------------------------
 else:
     st.info("Please upload an Excel file to begin.")
+
+
+    
