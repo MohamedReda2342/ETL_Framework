@@ -248,7 +248,7 @@ if uploaded_file is not None:
         # core tables without lookups (core table that doesn't have subject area )
         core_tables_options = core_tables_options[core_tables_options['subject area'].str.upper() != 'LKP']
         if selected_action=="HIST_REG":
-            core_tables_options = core_tables_options[core_tables_options['historization key'].isin(['STRT_DT','HIST','END_DT'])]['table name'].unique().tolist()
+            core_tables_options = core_tables_sheet[core_tables_sheet['historization key'].isin(['STRT_DT','HIST','END_DT'])]['table name'].unique().tolist()
         else:
             core_tables_options = core_tables_options['table name'].unique().tolist()
         selected_core_table = st.selectbox(
