@@ -489,15 +489,17 @@ def create_core_input_view(smx_model,environment):
                 
             #TODO : not working in first and second
             if 'timestamp' in data_type.lower() or 'date' in data_type.lower() :
-                data_type = data_type+" FORMAT 'YYYYMMDD'"
+                data_type = data_type+" FORMAT 'YYYY-MM-DD'"
         
             if historization_algorithm != 'INSERT' :    
                 pk = pk_lookup.get(column_name)
-                if pk and str(pk).lower() == 'y' :
+                if str(pk).lower() == 'y' :
                     if str(column_name).lower().endswith('_id'):
                         PK_column = column_name
                     if mapped_to_column:
                         join_on_pk_columnn.append(f"{target_table_name}.{column_name} = {mapped_to_column}")
+                    elif transformation_rule:
+                        join_on_pk_columnn.append(f"{target_table_name}.{column_name} = {transformation_rule}")
 
 
             counter+=1 
