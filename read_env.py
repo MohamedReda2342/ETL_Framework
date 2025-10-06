@@ -6,8 +6,8 @@ class CurrentEnv:
     self.env = env #'DEV' # 'TST' 'PROD'
     
     self.Debug_Level=6
-    self.oReturn_Code= '01'
-    self.oReturn_Message= '02' 
+    self.oReturn_Code= 'O1'
+    self.oReturn_Message= 'O2' 
     self.OMessage = ':OMessage'
     
 
