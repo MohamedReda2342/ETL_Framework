@@ -47,7 +47,7 @@ field_requirements = {
     "code_domain_names": ["REG_BMAP_DOMAIN", "Insert BMAP values","all_bmap"],
     
     # Core tables is required when tab is "6- core tables"
-    "core_tables": ["tab_6_core","HIST_REG","create_core_table","create_core_table_view","CORE_KEY_COL_REG"],
+    "core_tables": ["tab_6_core","HIST_REG","create_core_table","create_core_table_view","CORE_KEY_COL_REG","create_core_input_view"],
     
     # Mapping names is required for these actions
     "mapping_names": ["create_core_input_view","REG_CORE_PROCESS"]
