@@ -981,3 +981,5 @@ DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table
     return script
 
     
+
+    

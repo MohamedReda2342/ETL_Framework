@@ -11,6 +11,8 @@ from datetime import datetime
 from util.auth import check_authentication
 import util.tab_operations as tab_operations
 from code_editor import code_editor
+import re
+
 
 # Authentication check - must be first command
 authenticator = check_authentication()
@@ -176,6 +178,29 @@ if uploaded_file is not None:
     all_stg_tables = stg_tables_sheet['table name stg'].dropna().unique().tolist() 
     # Filter STG tables based on selected key set 
     filtered_stg_table = stg_tables_sheet
+#-----------------------------------------
+    # Adding alias to column names nefore filtering the stg dataframe 
+    # after filteration the columns we need to search for in the natural keys will not exist all of them will be SK & BM
+    # so we apply alias before filtering to garuntee that all column will exist
+    
+    natural_keys = filtered_stg_table['natural key']
+
+    for col_name in filtered_stg_table['column name stg'].unique():
+        # Match only if col_name is surrounded by spaces or at start/end of string
+        # This pattern ensures no alphanumeric or underscore characters adjacent
+        pattern = r'(?<![A-Za-z0-9_])' + re.escape(col_name) + r'(?![A-Za-z0-9_])'
+        
+        # Create a mask for rows that contain this column name with proper boundaries
+        mask = filtered_stg_table['natural key'].str.contains(pattern, na=False, regex=True)
+        
+        if mask.any():
+            # Only update rows where the column name is found with proper boundaries
+            filtered_stg_table.loc[mask, 'natural key'] = filtered_stg_table.loc[mask].apply(
+                lambda row: re.sub(pattern, f"{row['table name stg']}.{col_name}", row['natural key']),
+                axis=1
+            )
+#_-----------------------------------------
+
     stg_table_options=[]
     # This ensure also that stg tables DF has no null in the key set name and key domain name 
     if disable_key_set and disable_key_domain:
@@ -318,7 +343,6 @@ if uploaded_file is not None:
             "table mapping": filtered_table_mapping_df,
             "column mapping": filtered_column_mapping_df,
         }
-    st.write(filterd_STG_tables_df[filterd_STG_tables_df['natural key']=='CARD_UID'])
     smx_model = {k.lower(): v for k, v in Dict.items()}
     # Process each DataFrame: lowercase
     for key in smx_model:

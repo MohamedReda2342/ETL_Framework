@@ -16,13 +16,14 @@ def generate_bkey_views(smx_model, env):
         key_set_name = row['key set name']
         Domain_Name = row['key domain name']
         table_name_STG = row['table name stg']
-        natural_key = row['natural key']
         Column_Name_STG = row['column name stg']
         BKEY_filter = row['bkey filter']
         BKEY_join = row['bkey join']
-
         environment = env 
-        print("filter",BKEY_filter)
+
+        natural_key = row['natural key']
+        print(natural_key)
+        
         process_name="BK_"+key_set_name+"_"+Domain_Name+"_"+table_name_STG+"_"+Column_Name_STG
         filter_condition =""
         if len(BKEY_filter.strip()) > 0 :
@@ -34,11 +35,10 @@ def generate_bkey_views(smx_model, env):
         view_script =f"""
         REPLACE VIEW G{environment}1V_INP.{process_name} AS LOCK ROW FOR ACCESS 
         SELECT TRIM({natural_key}) AS SOURCE_KEY
-        FROM G{environment}1V_STG.{table_name_STG} A {BKEY_join}
-        WHERE A.{natural_key} IS NOT NULL AND A.{natural_key} <> '' {filter_condition}
+        FROM G{environment}1V_STG.{table_name_STG} AS {table_name_STG} {BKEY_join}
+        WHERE {natural_key} IS NOT NULL AND {natural_key} <> '' {filter_condition}
         GROUP BY 1;
         """
-        print(view_script)
         scripts.append(view_script)
 
     return scripts
