@@ -1,4 +1,5 @@
 from datetime import date
+import numpy as np
 
 class CurrentEnv:
   def __init__(self, env, bi_flag):
@@ -60,7 +61,8 @@ class CurrentEnv:
     self.File_Qualifier_Reset_Flag = 0
 
     self.Description=""
-    
+    self.bkey_process_code_set_id = np.nan
+
 
     self.SRCI_Process_Type =25
     self.SRCI_Out_DB_Name = "G"+env+ "1V_SRCI" 
