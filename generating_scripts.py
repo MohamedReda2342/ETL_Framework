@@ -552,7 +552,7 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
         df_group['schema']=env_schema
         print(df_group['schema'])
         print(df_group.columns)
-        print(Fore.LIGHTRED_EX+'1) ======================== apply schema and other environment variables ==========', env)
+        print(Fore.LIGHTRED_EX+'1) ======================== apply schema and other environment variables ==========')
     
         print(df_group[['parameter_name','source', 'smx_column']])
 
