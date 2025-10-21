@@ -11,7 +11,10 @@ import sys
 from colorama import init, Fore, Back, Style
 init(autoreset=True)  # Initialize colorama
 from itertools import chain  
-# import regex as re
+import regex as re
+import math
+from decimal import Decimal
+
 import psutil
 import os
 from util import Queries 
@@ -45,7 +48,7 @@ def load_smx_file(filename):
         df = pd.read_excel(filename,work_sheet)
         cols = [x.lower() for x in df.columns]
         df.columns=cols
-        smx_model[work_sheet.lower()] = df
+        smx_model[work_sheet.lower()] = df #list(df.columns)
 
     smx_df = pd.DataFrame(smx_model.items())
     return smx_model, smx_df
@@ -128,21 +131,24 @@ def flatten(a):
     res = []  
     for x in a:  
         if isinstance(x, list):  
-            res.extend(flatten(x))  
+            res.extend(flatten(x))  # Recursively flatten nested lists  
         else:  
-            res.append(x)  
+            res.append(x)  # Append individual elements  
     return res  
 
 def join_bkey_stg_stream(smx_tabs, df,smx_dict):
     print(Back.LIGHTGREEN_EX+ "==================    join_bkey_stg_stream   ========================================================")
-    print(df)
+    #print(df)
     print(df.columns)
     print(smx_tabs)
     #BKEY and STG tables
     df1=smx_dict['bkey']
+   
     df2=smx_dict['stg tables']
+    
     on_cols=['key set name','key domain name']
-    merged= pd.merge(df1, df2, on=on_cols, how='left')
+    
+    merged= pd.merge(df1, df2, on=on_cols,  how='left')
     print(Fore.LIGHTMAGENTA_EX+"merged bkey and stg tables")
     print(merged)
     df3=smx_dict['stream']
@@ -179,7 +185,6 @@ def join_columns(smx_tabs, df,smx_dict, key_type):
     if key_type=='EXEC_SRCI':
         search_string='_SRCI'
         df2=smx_dict['stg tables']
-        
         df3=smx_dict['stream']
         filtered_df=df3[df3['stream name'].str.contains(search_string)]
         the_joined_smx_tabs = pd.merge(df2, filtered_df, left_on='source system alias', right_on='system name', how='left')
@@ -213,8 +218,11 @@ def join_columns(smx_tabs, df,smx_dict, key_type):
         the_joined_smx_tabs = pd.merge(df1_df2_merged, filtered_df, left_on='source system alias', right_on='system name', how='left')
 
     else:
-       
+       print(Back.YELLOW + "WE ARE IN THE ELSE ")
        the_joined_smx_tabs= join_bkey_stg_stream(smx_tabs, df,smx_dict)
+       print(the_joined_smx_tabs)
+       print(Fore.LIGHTRED_EX+"*****************************************  **************************************")
+        
 
     print(Fore.YELLOW+'-------------- the returned joined df ---- ')
     print(the_joined_smx_tabs)
@@ -249,10 +257,10 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
 
     print(smx_source_list)
     
-    ll2 = [item for item in smx_source_list if item != 'env']
-    print(Back.CYAN+ "ll2")
-    print(ll2)
-    flattened_list = [item for sublist in ll2 for item in sublist]
+    #ll2 = [item for item in smx_source_list if item != 'env']
+    #print(Back.CYAN+ "ll2")
+    #print(ll2)
+    flattened_list = [item for sublist in smx_source_list for item in sublist]
     print(Back.CYAN+ "flattened_list")
     print(flattened_list)
     print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
@@ -384,7 +392,7 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
     
     for index, row in df.iterrows():
         print(Fore.YELLOW+"------------------------ checking the rows attributes -------------------")
-        #print(row)
+        print(row)
         #print(row['prefix'])
         #print(row['parameter'])
         '''
@@ -393,28 +401,49 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
         '''
         if row['source']=='env':
             print(Fore.YELLOW+f'here in the env parameter')
-            #print(row['parameter'])
+            print(row['parameter'])
             my_string=row['parameter']
             s=my_string.replace('"', '')
-            #print(s.isdigit())
+            print(Fore.YELLOW+f'------------------ printing s')
+            print(s)
+            print(s.isdigit())
             if s.isdigit():
-                #new_string = my_string.replace('"', '')
-                #print(new_string)
+                print(s)
+                new_string ="'"+ s+"'" # my_string.replace('"', '')
+                print(new_string)
+                #s.replace('0', 'o')
+                print(s)
                 final_df[row['parameter_name']]=[s]*n
             elif (s=='None'):
                 print("s=None")
                 final_df[row['parameter_name']]=''*n
+
                 #pd.Series()
 
 
 
             else:
-                my_string=my_string.replace('"', "'")
+                print("PRINTING my_string ------------------------- "+my_string) 
+               
+                if s=='nan':
+                    print("s=nan" )
+                    my_variable = Decimal('nan')
+                    print(my_variable)
+                    final_df[row['parameter_name']]='' # my_variable
+                else:
+                    print(Fore.YELLOW+f'------------------ printing s')
+                    print(s)
+                    if row['presentation_col']=='quoted':
+                        my_string= "'"+ s+"'" # my_string.replace('"', "")
+                    else :
+                        my_string=s
+                    print(my_string)
                 final_df[row['parameter_name']]=[my_string]*n
             
             col_values=[row['parameter']]*n
             print(Fore.LIGHTMAGENTA_EX+ "printing the environment values")
-            #print(col_values)
+            print(Fore.LIGHTMAGENTA_EX+ "==============================================================")
+            print(col_values)
             
            
 
@@ -460,6 +489,8 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
                   print(Fore.MAGENTA+ f'we need to apply the quoted  {row['presentation_col']}')
                   print(row['parameter_name'])
                   df_tmp[row['parameter_name']]=df_tmp[row['parameter_name']].apply(lambda x: '\'{}\''.format(x))
+                  print(row['parameter_name'])
+                  print(df_tmp)
                   #df_tmp[row['parameter_name']]=df_tmp[row['parameter_name']].apply(lambda x: f"'{x}'")
                   #df['col1'] = df['col1'].apply(lambda x: f"'{x}'")
                   #df['col1'] = "'" + df['col1'].astype(str) + "'"
@@ -521,7 +552,7 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
         df_group['schema']=env_schema
         print(df_group['schema'])
         print(df_group.columns)
-        print(Fore.LIGHTRED_EX+'1) ======================== apply schema and other environment variables ==========')
+        print(Fore.LIGHTRED_EX+'1) ======================== apply schema and other environment variables ==========', env)
     
         print(df_group[['parameter_name','source', 'smx_column']])
 
@@ -721,7 +752,6 @@ def smx_pre_filter(smx_model, smx_tab, condition):
     
     return smx_model
 
-
 def get_core_script_dict(script, smx_model):
         print(Fore.YELLOW+"=========================== ca commence =========================")
 
@@ -817,17 +847,23 @@ def main(smx_model, key_type, env , bigint_flag):
 
     match key_type:
         case "BKEY_CALL" : 
-             cols_list=['operation','schema','functions', 'parameters', 'parameter_name', 'source', 'smx_column'] 
-             script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
+            print("key type = ", key_type)
+            cols_list=['operation','schema','functions', 'parameters', 'parameter_name', 'source', 'smx_column'] 
+            print(filtered_script_df.columns)
+            
+            script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
             
         case "REG_BKEY_PROCESS":
             print("key type = ", key_type)
             print(filtered_script_df.columns)
-            condition = "['Key Set Name' == 'PARTY' AND 'Key Domain Name' == 'CIF']"
+            #condition = "['Key Set Name' == 'PARTY' AND 'Key Domain Name' == 'CIF']"
             
-            smx_model= smx_pre_filter(smx_model, 'bkey', condition)
+            #smx_model= smx_pre_filter(smx_model, 'bkey', condition)
+            #sys.exit(0)
             script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
-                    
+            print("============ Generated Script ===================")
+            print(script)
+            print(type(script))       
         case "REG_BKEY_DOMAIN" : #Stream".lower():
            print("key type = ", key_type)
            #script= get_bkey_domain_script(smx_model,filtered_script_df, env_attributes )
@@ -837,7 +873,7 @@ def main(smx_model, key_type, env , bigint_flag):
            print(script)
            print(len(script))
            print(type(script))
-           script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
+
 
         case "REG_BKEY" :# STG tables".lower():
             print("key type = ", key_type)
@@ -848,7 +884,8 @@ def main(smx_model, key_type, env , bigint_flag):
             print(script)
             for s in script:
                 print(Back.LIGHTGREEN_EX+ str(s))
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes , key_type)        
+            
+
         case "STREAM" :# STG tables".lower():
             print("key type = ", key_type)
             print(env_attributes)
@@ -858,7 +895,7 @@ def main(smx_model, key_type, env , bigint_flag):
             print(script)
             for s in script:
                 print(Back.LIGHTGREEN_EX+ str(s))
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
+
 
         case "REG_BMAP" :# STG tables".lower():
             print("key type = ", key_type)
@@ -881,7 +918,6 @@ def main(smx_model, key_type, env , bigint_flag):
             for s in script:
                 print(Back.LIGHTGREEN_EX+ str(s))
             
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
             
         case "EXEC_SRCI" :# STG tables".lower():
             print("key type = ", key_type)
@@ -905,7 +941,17 @@ def main(smx_model, key_type, env , bigint_flag):
             condition = "['pk'] == 'Y'"
             smx_model= smx_preprocess(smx_model, 'core tables', condition)
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
+            #script= get_bkey_call_script(smx_model,filtered_script_df, env_attributes )
+            print("======================= returned script : ")
+            print(script)
+            for s in script:
+                print(Back.LIGHTGREEN_EX+ str(s))
+            
+            print(type(smx_model))
+            print(smx_model.keys())
+            print(smx_model['core tables'])
             script_dict= get_core_script_dict(script, smx_model)
+            print(script_dict)
 
             script2 = ''' '''  # Initialize with triple quotes for multiline string
             for table_name, values in script_dict.items():
@@ -930,6 +976,10 @@ DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_
             print(env_attributes)
             #smx_model= smx_preprocess(smx_model, 'core tables', f'PK==Y')
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
+            print("======================= returned script : ")
+            print(script)
+            for s in script:
+                print(Back.LIGHTGREEN_EX+ str(s))
 
         case "HIST_REG" :# STG tables".lower():
             print("key type = ", key_type)
@@ -954,6 +1004,7 @@ DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_
             print(smx_model['core tables'])
             
             script_dict= get_core_script_dict(script, smx_model)
+            print(script_dict)
             stmnt = """SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';
 DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';  """
             script = df_utlis.add_sql_to_dictionary(script_dict,env,stmnt)
