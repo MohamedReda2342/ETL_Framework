@@ -2,7 +2,7 @@ from datetime import date
 import numpy as np
 
 class CurrentEnv:
-  def __init__(self, env, bi_flag):
+  def __init__(self, env, bi_flag=0):
     env=str(env)
     self.env = env #'DEV' # 'TST' 'PROD'
     

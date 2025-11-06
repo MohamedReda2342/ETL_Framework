@@ -11,7 +11,7 @@ import sys
 from colorama import init, Fore, Back, Style
 init(autoreset=True)  # Initialize colorama
 from itertools import chain  
-# import regex as re
+import regex as re
 import math
 from decimal import Decimal
 
@@ -409,11 +409,15 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
             print(s.isdigit())
             if s.isdigit():
                 print(s)
-                new_string ="'"+ s+"'" # my_string.replace('"', '')
+                new_string ="'"+ s+"'" 
                 print(new_string)
                 #s.replace('0', 'o')
                 print(s)
-                final_df[row['parameter_name']]=[s]*n
+                if row['presentation_col']=='quoted':
+                    final_df[row['parameter_name']]=[new_string]*n
+                else: 
+                    final_df[row['parameter_name']]=[s]*n
+                print(final_df[row['parameter_name']])
             elif (s=='None'):
                 print("s=None")
                 final_df[row['parameter_name']]=''*n
@@ -423,14 +427,14 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
 
 
             else:
-                print("PRINTING my_string ------------------------- "+my_string) 
-               
+                print("PRINTING my_string ------------------------- "+ my_string) 
                 if s=='nan':
                     print("s=nan" )
                     my_variable = Decimal('nan')
                     print(my_variable)
                     final_df[row['parameter_name']]='' # my_variable
                 else:
+                    print(Fore.YELLOW+f'HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH see if it should be quoted ')
                     print(Fore.YELLOW+f'------------------ printing s')
                     print(s)
                     if row['presentation_col']=='quoted':
@@ -444,10 +448,12 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
             print(Fore.LIGHTMAGENTA_EX+ "printing the environment values")
             print(Fore.LIGHTMAGENTA_EX+ "==============================================================")
             print(col_values)
+            print(Fore.LIGHTMAGENTA_EX+ "printing the environment values in the final_df ")
+            print(Fore.LIGHTMAGENTA_EX+ "==============================================================")
+            print(final_df)
             
            
-
-        else:
+        else: # smx not envirnment
             smx_cols= row['parameter'].split(',')
             print(Fore.CYAN+f'smx_cols: {smx_cols}')
             smx_cols=[x.lower() for x in smx_cols]
@@ -479,14 +485,17 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
                 print(df_tmp[smx_cols[0]])
                 df_tmp[row['parameter_name']] = df_tmp[smx_cols[0]].values
 
-            print(Fore.LIGHTMAGENTA_EX+ f'we need to apply the prefix if needed : {row['prefix']}')
+            #print(Fore.LIGHTMAGENTA_EX+ f'we need to apply the prefix if needed : {row ['prefix'] }')
+            print(Fore.LIGHTMAGENTA_EX+ f'we need to apply the prefix if needed : {row}')
 
             if pd.notna(row['prefix']): 
-                print(Fore.LIGHTMAGENTA_EX+ f'we need to apply the prefix {row['prefix']}')
-                la_liste=[f'{row['prefix']}_{x}' for x in df_tmp[row['parameter_name']]]
+                #print(Fore.LIGHTMAGENTA_EX+ f'we need to apply the prefix {row['prefix']}')
+                print(Fore.LIGHTMAGENTA_EX+ 'we need to apply the prefix ')
+                print(row['prefix'])
+                la_liste=[f'{row["prefix"]}_{x}' for x in df_tmp[row["parameter_name"]]]
                 df_tmp[row['parameter_name']]=la_liste
             if row['presentation_col']=='quoted':
-                  print(Fore.MAGENTA+ f'we need to apply the quoted  {row['presentation_col']}')
+                  print(Fore.MAGENTA+ f"we need to apply the quoted  {row['presentation_col']}")
                   print(row['parameter_name'])
                   df_tmp[row['parameter_name']]=df_tmp[row['parameter_name']].apply(lambda x: '\'{}\''.format(x))
                   print(row['parameter_name'])
@@ -505,14 +514,10 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
 
     
     print(final_df)
+
     print(Fore.YELLOW+ f'printing final df type : {type(final_df)}')
     script = final_df.values.tolist()
-    '''
-    with open('REG_BKEY_PROCESS_output.SQL', mode='wt', encoding='utf-8') as myfile:
-                for l in script:
-                    myfile.write('\n'.join(l))
-                    myfile.write('\n\n')
-    '''
+    
     print(Fore.YELLOW+" &&&&&&&&&&&&&&&&&   we end here ")
     print(Back.YELLOW+ "*********************************************************************************")
     '''
@@ -837,12 +842,14 @@ def main(smx_model, key_type, env , bigint_flag):
     
     filtered_script_df=filter_key_type(syntax_model, key_type)
     
-    env_attributes=get_env_dict(str(env), bigint_flag)
 
     print('=====================================================================')
     #print(filtered_script_df)
     print(filtered_script_df.columns)
     print('=====================================================================')
+
+    env_attributes=get_env_dict(str(env), bigint_flag)
+
 
 
     match key_type:
@@ -906,7 +913,6 @@ def main(smx_model, key_type, env , bigint_flag):
             print(script)
             for s in script:
                 print(Back.LIGHTGREEN_EX+ str(s))
-            script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
 
         case "REG_BMAP_DOMAIN" :# STG tables".lower():
             print("key type = ", key_type)
@@ -1030,7 +1036,3 @@ DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table
             script = Queries.create_core_input_view (smx_model, env)
             
     return script
-
-    
-
-    
