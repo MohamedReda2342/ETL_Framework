@@ -2,7 +2,7 @@ import math
 from typing import Counter
 from pandas.io.formats.style import Subset
 import streamlit as st
-from sqlalchemy import column, desc
+# from sqlalchemy import column, desc
 
 import pandas as pd
 # --------------------------------------------------------  Actions   -------------------------------------------------------------- 

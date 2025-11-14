@@ -3,16 +3,13 @@ import yaml
 from yaml.loader import SafeLoader
 import streamlit as st
 from streamlit_authenticator import Authenticate
-
+from util.config import load_config
 # Hide sidebar by default
 st.set_page_config(initial_sidebar_state="collapsed")
 
-def load_auth_config():
-    with open('config.yaml') as file:
-        return yaml.load(file, Loader=SafeLoader)
 
 def initialize_authenticator():
-    config = load_auth_config()
+    config = load_config()
     return Authenticate(
         config['credentials'],
         config['cookie']['expiry_days']
@@ -46,7 +43,7 @@ def check_authentication():
         st.success(f'Welcome *{st.session_state["name"]}*')
         
         # Add user roles to session state
-        config = load_auth_config()
+        config = load_config()
         username = st.session_state["username"]
         if username in config["credentials"]["usernames"]:
             st.session_state["roles"] = config["credentials"]["usernames"][username]["roles"]

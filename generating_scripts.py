@@ -19,6 +19,7 @@ import psutil
 import os
 from util import Queries 
 from util import df_utlis
+from util.config import get_app_path
 
 def load_script_model():
     obj = pd.read_pickle(r'pickled_df/bkey_functions.pkl')
@@ -833,7 +834,9 @@ def get_core_script_dict(script, smx_model):
 
 @st.cache_resource
 def load_cached_model():
-    script_file = "schema_functions_MAPPED_script_V_7_1.xlsx"
+    # NEW CODE:
+    script_file = get_app_path("schema_functions_MAPPED_script_V_7_1.xlsx")
+    
     return load_syntax_model(script_file)
 
 

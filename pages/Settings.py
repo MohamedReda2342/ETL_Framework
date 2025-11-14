@@ -1,8 +1,6 @@
 import streamlit as st
-import yaml
-from yaml.loader import SafeLoader
-import os
 from util.auth import check_authentication
+from util.config import get_app_path, load_config, save_config
 
 # Authentication check - must be first command 
 authenticator = check_authentication()
@@ -13,14 +11,10 @@ if 'roles' not in st.session_state or 'admin' not in st.session_state['roles']:
     st.stop()
 authenticator.logout('Logout', 'sidebar')
 
-# Load config functions
-def load_config():
-    with open('config.yaml') as file:
-        return yaml.load(file, Loader=SafeLoader)
+# get_app_path is provided by util.config
 
-def save_config(config):
-    with open('config.yaml', 'w') as file:
-        yaml.dump(config, file, default_flow_style=False)
+
+# load_config and save_config are provided by util.config
 
 # Initialize session state for edit mode
 if 'edit_user' not in st.session_state:

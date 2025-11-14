@@ -40,4 +40,3 @@ def add_sql_to_dictionary(script_dict, env , stmnt) :
             # Then append the single value
             script2 += values + '\n'
     return script2  # Return the combined script
-
