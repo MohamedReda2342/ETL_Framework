@@ -1,5 +1,4 @@
 import pandas as pd
-import streamlit as st
 import io  
 
 def load_sheet(file_content, sheet_name):

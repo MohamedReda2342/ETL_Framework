@@ -15,7 +15,7 @@ credentials:
       first_name: tester
       last_name: 
       logged_in: false
-      password: '123456789'
+      password: '$2b$12$rjtNkE05v.Eq9mlUyiWdl.Ytptk/qZgg/FQlfSoRTXpnrtaF4qIzq'
       roles:
         - Reviewer
     Moo:

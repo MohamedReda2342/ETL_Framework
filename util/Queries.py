@@ -1,7 +1,6 @@
 import math
 from typing import Counter
 from pandas.io.formats.style import Subset
-import streamlit as st
 # from sqlalchemy import column, desc
 
 import pandas as pd
@@ -22,12 +21,10 @@ def generate_bkey_views(smx_model, env):
         environment = env 
 
         natural_key = row['natural key']
-        print(natural_key)
         
         process_name="BK_"+key_set_name+"_"+Domain_Name+"_"+table_name_STG+"_"+Column_Name_STG
         filter_condition =""
         if len(BKEY_filter.strip()) > 0 :
-            print("filter",BKEY_filter)
             filter_condition = f"AND {BKEY_filter}"
         if len(BKEY_join.strip()) > 0 :
             BKEY_join = f"\n {BKEY_join}"
@@ -40,6 +37,7 @@ def generate_bkey_views(smx_model, env):
         GROUP BY 1;
         """
         scripts.append(view_script)
+
 
     return scripts
 
@@ -158,7 +156,6 @@ def create_stg_table_and_view(smx_model, environment):
         REPLACE VIEW G{environment}1V_STG.{table_name_stg} AS LOCK ROW FOR ACCESS SELECT * FROM G{environment}1T_STG.{table_name_stg};
     """
         sql_scripts.append(create_stmt.strip())
-    print(sql_scripts)
 
     return "\n\n".join(sql_scripts)
 # ------------------------------------------------------------------------------------------------------
@@ -172,8 +169,6 @@ def create_SCRI_table(smx_model, environment):
     sql_scripts = []
 
     stg_df = stg_df.dropna(subset=['table name stg', 'column name stg', 'stg data type'])
-    # print(stg_df.columns)
-
     # Group by each STG table name
     for table_name_stg, group in stg_df.groupby('table name stg'):
         columns = []
@@ -274,7 +269,6 @@ def create_SCRI_input_view(smx_model, environment):
 
                 group['natural key'].replace(col, f"SOURCE.{col}", inplace=True)
                 
-                # print(group[group['natural key']==col])
             else:
                 target = f" {col} "
                 for nk in natural_keys:
@@ -306,7 +300,6 @@ def create_SCRI_input_view(smx_model, environment):
                     
                     BKscolumns.append(f"BK{SK_counter}.EDW_KEY AS {col_name}") 
                     SK_counter += 1
-                    print("SK_column:    "+  col_name)
             # we need to check for code set name & code domain id & natural key  not null 
             elif col_name.upper().startswith('BM_') :
                 if natural_key!='' and  row["code set name"] and row["code domain name"]:
@@ -322,7 +315,6 @@ def create_SCRI_input_view(smx_model, environment):
                             joins_BM_script.append(f"LEFT JOIN G{environment}1V_UTLFW.BMAP_STANDARD_MAP BM{BM_counter} ON {natural_key} = BM{BM_counter}.SOURCE_CODE AND BM{BM_counter}.CODE_SET_ID = {code_set_id} AND BM{BM_counter}.DOMAIN_ID = {code_domain_id}")
                             BMscolumns.append(f"BM{BM_counter}.EDW_CODE AS {col_name}")
                             BM_counter += 1
-                            print("BM_column:    "+  col_name)
             else :
                 Source_columns.append(f"SOURCE.{col_name}")
                 conditions.append(f"SOURCE.{col_name} IS NOT NULL")

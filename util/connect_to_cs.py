@@ -4,16 +4,21 @@ from dotenv import load_dotenv
 import os
 from teradataml import *
 from util import Queries
+from util.config import get_app_path # <--- 1. IMPORT THIS
 
 # Load the .env file with error handling
 try:
-    # Check if .env file exists before loading
-    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    # --- 2. THIS IS THE CHANGED BLOCK ---
+    # Use get_app_path to find .env in the project root
+    env_path = get_app_path('.env') 
+    
     if not os.path.exists(env_path):
         print(f"Warning: .env file not found at {env_path}")
+    else:
+        # Attempt to load the .env file
+        load_dotenv(dotenv_path=env_path) # Explicitly pass the path
+    # --- END OF CHANGED BLOCK ---
     
-    # Attempt to load the .env file
-    load_dotenv()
 except Exception as e:
     print(f"Error loading .env file: {str(e)}")
 

@@ -1,4 +1,3 @@
-import streamlit as st
 from util import df_utlis
 
 # Tab options with their key types
@@ -13,6 +12,8 @@ tab_options = {
 }
 
 
+# Field requirements for each key type (action)
+# Field requirements for each key type (action)
 # Field requirements for each key type (action)
 field_requirements = {
     # Environment is required for all actions

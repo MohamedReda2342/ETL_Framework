@@ -1,4 +1,3 @@
-import streamlit as st
 import pandas as pd
 import openpyxl
 from dotenv import load_dotenv
@@ -14,7 +13,8 @@ from itertools import chain
 import regex as re
 import math
 from decimal import Decimal
-
+import re
+import json
 import psutil
 import os
 from util import Queries 
@@ -173,8 +173,10 @@ def join_columns(smx_tabs, df,smx_dict, key_type):
     This functions will perform the following:
     1) join tabs (dataframes) from the smx workbook based on the key_type
     2) perform some modifications on the dataframe:
-        - reading as str type
-        - for the core process, we need to replace the operation by process type
+        A - reading as str type
+        B- for the core process, we need to replace the operation by process type
+            i- we also need to filter the dataframe if a filter condition exists !
+    
 
     """
     
@@ -183,6 +185,12 @@ def join_columns(smx_tabs, df,smx_dict, key_type):
     #print(df)
     print(smx_tabs)
     print(key_type)
+    print(Fore.YELLOW+"----- In the join function  printing df -----------------------")
+    print(df)
+    print(Fore.YELLOW+"----- In the join function  key_type -----------------------")
+    print(key_type)
+    
+
     if key_type=='EXEC_SRCI':
         search_string='_SRCI'
         df2=smx_dict['stg tables']
@@ -197,6 +205,11 @@ def join_columns(smx_tabs, df,smx_dict, key_type):
         print(df1['historization algorithm'])
         hist_algo =  df1['historization algorithm']
         hist_algo_dict = {'INSERT': [25,1] ,  'UPSERT': [23,0], 'HISTORY': [29,0]}
+        print(Fore.LIGHTRED_EX+"*****************************************  **************************************")
+        print(Fore.LIGHTRED_EX+"*****************************************  **************************************")
+        print(df)
+        print(Fore.LIGHTRED_EX+"*****************************************  **************************************")
+        print(Fore.LIGHTRED_EX+"*****************************************  **************************************")
         hist_algo = list(map(lambda x: hist_algo_dict[x][0] , list(df1['historization algorithm'])))
         #hist_algo = list(map(lambda x: hist_algo_dict[x] , list(df1['historization algorithm'])))
         print(hist_algo)
@@ -247,7 +260,7 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
 
     smx_lst=list(df['smx_column'])
     smx_tabs_lst=list(df['source'])
-    #smx_join_key=list(df.query('join_key == join_key')['join_key'])
+   
     
     print(Fore.LIGHTGREEN_EX+ f'{smx_lst}')
     print(Fore.RED+"this is the smx_tabs_lst")
@@ -529,22 +542,61 @@ def get_params_values_better(smx_tab, df, smx_dict, key_type):
     #return df_with_empty_cols
     return final_df
 
+def check_function_filter(filtered_script_df, smx_dict, filter_col):
+    '''
+    We need to check the function needs to be applied to a subset of the dataset:
+    an example :
+    REG_CORE_PROCESS	EXEC_CORE_PROCESS		GCFR_Standard_Macros	GCFR_Register_Process		
+    REG_CORE_PROCESS	CALL_CORE_PROCESS		GCFR_Standard_Processing_Pattern_Stored_Procedure	GCFR_PP_TfmTxn	GDEV1P_PP	table mapping, historization algorithm, INSERT
+    REG_CORE_PROCESS	CALL_CORE_PROCESS		GCFR_Standard_Processing_Pattern_Stored_Procedure	GCFR_PP_TfmFull	GDEV1P_PP	table mapping, historization algorithm, UPSERT
+    REG_CORE_PROCESS	CALL_CORE_PROCESS		GCFR_Standard_Processing_Pattern_Stored_Procedure	GCFR_PP_History_Merge	GDEV1P_PP	table mapping, historization algorithm, HISTORY
+    '''
+    print(filter_col)
+    #print(smx_dict)
+    condition_list = list(filter_col[0].split(','))
+    condition_list=[item.strip() for item in condition_list]
+    print(condition_list)
+    df=smx_model[condition_list[0]]
+    print(df)
+    
+    filtered_loc = df.loc[df[condition_list[1]] == condition_list[2]]
+    print(smx_dict[condition_list[0]])
+    smx_dict[condition_list[0]] =filtered_loc
+    print(smx_dict[condition_list[0]])
+    return smx_dict
 
-def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type):
+def get_bkey_reg_script(smx_dict, filtered_script_df, env_attributes, key_type):
     scripts=[]
     print(key_type)
-    print(Fore.LIGHTRED_EX+" 0- Lets check the filtered operation *****************************************  :")
-    print(filtered_script_df)
+    print(Fore.LIGHTRED_EX+" In get_bkey_reg_script "
+    "0- Lets check the filtered operation *****************************************  :")
 
     print(filtered_script_df.columns)
     script=" place holder "
-    print(env_attributes)
-    print(type(env_attributes))
+    #print(env_attributes)
+    #print(type(env_attributes))
     
-    print("==========================================================================")
    
     print(filtered_script_df)
+    print(filtered_script_df['filter'])
     df_by_function=filtered_script_df.groupby(['operation', 'schema','functions' ], sort=False)
+    '''
+    for group_name, df_group in df_by_function:
+        print(Back.RED + f"Group Name: {group_name}")
+        print(Back.GREEN + str(group_name))
+
+        filter_col = list(df_group['filter'].dropna().unique())
+        
+        smx_model = smx_dict.copy()
+        
+        if len(filter_col)==1:    
+            smx_model = check_function_filter(filtered_script_df, smx_model, filter_col)
+            
+           
+    sys.exit()
+      '''
+        
+
        
     for group_name, df_group in df_by_function:
         print(Back.RED + f"Group Name: {group_name}")
@@ -552,21 +604,21 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
         e_schema = df_group['schema'].unique()
         print(e_schema)
         env_schema = env_attributes[e_schema[0]]
-        print(env_schema)
-        print(df_group.columns)
-        print(df_group.shape)
-        df_group['schema']=env_schema
-        print(df_group['schema'])
-        print(df_group.columns)
-        print(Fore.LIGHTRED_EX+'1) ======================== apply schema and other environment variables ==========')
-    
-        print(df_group[['parameter_name','source', 'smx_column']])
-
-        #df_group['parameter'] = df_group.apply(lambda row: str(env_attributes[row.parameter_name]).strip("\'") if  row.source=='env' else np.nan, axis=1)
-        print(df_group.columns)
         
+        df_group['schema']=env_schema
+     
+        print(Fore.LIGHTRED_EX+'1) ======================== apply schema and other environment variables ==========')
+
+        filter_col = list(df_group['filter'].dropna().unique())
+        
+        smx_model = smx_dict.copy()
+        
+        if len(filter_col)==1:    
+            smx_model = check_function_filter(filtered_script_df, smx_model, filter_col)
+
+        print(smx_model)
         smx_tab= df_group['source'].unique()
-        print(df_group.columns)
+        #print(df_group.columns)
         df_group['parameter'] = df_group.apply(lambda row: f'"{str(env_attributes[row.env_variable])}"' if  row.source=='env' else row.smx_column, axis=1)
         print(df_group)
         print(Back.CYAN + str(df_group['parameter']))
@@ -638,7 +690,6 @@ def get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
         
         print(Back.LIGHTRED_EX + "====================== after get  values ============================")
         print(params_df)
-       
 
         print(Back.CYAN + "params_df with combined parameters")
         cols=params_df.columns
@@ -762,15 +813,16 @@ def get_core_script_dict(script, smx_model):
         print(Fore.YELLOW+"=========================== ca commence =========================")
 
         df = smx_model['core tables']
+        print(df)
         
         list_tables=df['table name'].unique()
-        #print(list_tables)
+        print(list_tables)
         script_dict={}
         script_dict = dict.fromkeys(list_tables, [])
-        #print(script_dict)
+        print(script_dict)
 
-        #print(script)
-        #print(Fore.YELLOW+f'{len(script)}')
+        print(script)
+        print(Fore.YELLOW+f'{len(script)}')
         flat_list = [item for sublist in script for item in sublist]
         print(flat_list)
         print(Fore.YELLOW+f'{len(flat_list)}')
@@ -782,12 +834,14 @@ def get_core_script_dict(script, smx_model):
             sub_s.replace('"', '')
             print(type(sub_s))
             print(Fore.MAGENTA+sub_s)
+            print(sub_s  )
+            
             my_tuple = eval(sub_s)
             #print(my_tuple)
             #print(type(my_tuple))
             #print(Fore.LIGHTRED_EX+'ss =  '+ my_tuple[1])
             ss=my_tuple[1]
-            print(Fore.CYAN+f'{ss}')
+            #print(Fore.CYAN+f'{ss}')
             items=[]
             for k in list_tables:
                 #print(Fore.BLUE+" "*4+'k = '+f'{k}')
@@ -832,7 +886,40 @@ def get_core_script_dict(script, smx_model):
 
 
 
-@st.cache_resource
+def hist_script_to_dict(function_list):
+    #function_list = ["EXEC GDEV1M_GCFR.GCFR_Register_Tfm_HistCol(GDEV1V_CORE, 'INDIVIDUAL_NAME', 'HIST', 'INDIVIDUAL_FULL_NAME_EN');", "EXEC GDEV1M_GCFR.GCFR_Register_Tfm_HistCol(GDEV1V_CORE, 'INDIVIDUAL_NAME', 'END_DT', 'INDIVIDUAL_NAME_END_DTTM');", "EXEC GDEV1M_GCFR.GCFR_Register_Tfm_HistCol(GDEV1V_CORE, 'INDIVIDUAL_NAME', 'STRT_DT', 'INDIVIDUAL_NAME_START_DTTM');", "EXEC GDEV1M_GCFR.GCFR_Register_Tfm_HistCol(GDEV1V_CORE, 'INDIVIDUAL_NAME', 'HIST', 'INDIVIDUAL_FULL_NAME_AR');"]
+    print(function_list)
+    # The resulting dictionary
+    functions_by_second_param = {}
+
+    # Regex Explanation (same robust pattern as before):
+    # (?:[^,]+,\s*)  -> Non-capturing group for the first parameter and comma
+    # ([^,\)]+)      -> Capture Group 1: The second parameter itself
+    pattern = re.compile(r"(?:[^,]+,\s*)([^,\)]+)", re.IGNORECASE)
+
+
+    # Iterate through functions and extract the second parameter
+    for function_str in function_list:
+        # Use search to find the pattern anywhere in the string
+        match = pattern.search(function_str)
+    
+        if match:
+            # Extract the captured group (param2) and clean it up
+            # Strip potential whitespace
+            second_param = match.group(1).strip()
+        
+            # KEY STEP: Normalize the key by stripping quotes and standardizing case
+            dict_key = second_param.strip("'\"").upper()
+        
+            # Make the normalized parameter the key, and append the function string as the value
+            # We use a list to handle multiple functions that might map to the same key
+            if dict_key not in functions_by_second_param:
+                functions_by_second_param[dict_key] = []
+            
+            functions_by_second_param[dict_key].append(function_str)
+    return functions_by_second_param
+
+
 def load_cached_model():
     # NEW CODE:
     script_file = get_app_path("schema_functions_MAPPED_script_V_7_1.xlsx")
@@ -862,7 +949,9 @@ def main(smx_model, key_type, env , bigint_flag):
             print(filtered_script_df.columns)
             
             script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
-            
+
+            print("============ Generated Script ===================")
+            print(script)
         case "REG_BKEY_PROCESS":
             print("key type = ", key_type)
             print(filtered_script_df.columns)
@@ -871,6 +960,7 @@ def main(smx_model, key_type, env , bigint_flag):
             #smx_model= smx_pre_filter(smx_model, 'bkey', condition)
             #sys.exit(0)
             script= get_bkey_reg_script(smx_model, filtered_script_df, env_attributes, key_type)
+
             print("============ Generated Script ===================")
             print(script)
             print(type(script))       
@@ -958,12 +1048,13 @@ def main(smx_model, key_type, env , bigint_flag):
             
             print(type(smx_model))
             print(smx_model.keys())
-            print(smx_model['core tables'])
-            script_dict= get_core_script_dict(script, smx_model)
-            print(script_dict)
+            flattened_list = [item for sublist in script for item in sublist]
+            
+            core_key_col_reg_dictionary =  hist_script_to_dict(flattened_list)
+            print(core_key_col_reg_dictionary)
 
             script2 = ''' '''  # Initialize with triple quotes for multiline string
-            for table_name, values in script_dict.items():
+            for table_name, values in core_key_col_reg_dictionary.items():
                 print(table_name)
                 print(values)
                 stmnt = f"""
@@ -982,8 +1073,13 @@ DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_
             return script2  # Return the combined script
         case "REG_CORE_PROCESS" :# core tables
             print("key type = ", key_type)
-            print(env_attributes)
+            # print(env_attributes)
             #smx_model= smx_preprocess(smx_model, 'core tables', f'PK==Y')
+            print(filtered_script_df)
+            #print(smx_model)
+            print(filtered_script_df.columns)
+            print(filtered_script_df['filter'])
+    
             script= get_bkey_reg_script(smx_model,filtered_script_df, env_attributes, key_type )
             print("======================= returned script : ")
             print(script)
@@ -1008,15 +1104,17 @@ DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_KEYCOL WHERE OUT_OBJECT_NAME = '{table_
             for s in script:
                 print(Back.LIGHTGREEN_EX+ str(s))
             
-            print(type(smx_model))
-            print(smx_model.keys())
-            print(smx_model['core tables'])
-            
-            script_dict= get_core_script_dict(script, smx_model)
-            print(script_dict)
+            #tables_names =  smx_model['core tables']['table name'].unique()
+            #print(tables_names)
+            # added code to return a dictionary with the tablename as a key
+            # the returned object is a dictionary
+
+            flattened_list = [item for sublist in script for item in sublist]
+            hist_reg_dictionary =  hist_script_to_dict(flattened_list)
+            print(hist_reg_dictionary)
             stmnt = """SELECT * FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';
 DELETE FROM G{env}1V_GCFR.GCFR_TRANSFORM_HISTCOL WHERE OUT_OBJECT_NAME = '{table_name}' AND OUT_DB_NAME = 'G{env}1V_CORE';  """
-            script = df_utlis.add_sql_to_dictionary(script_dict,env,stmnt)
+            script = df_utlis.add_sql_to_dictionary(hist_reg_dictionary,env,stmnt)
         case "bkey_views":
             script = Queries.generate_bkey_views(smx_model,env)
         case "Insert BMAP values":
