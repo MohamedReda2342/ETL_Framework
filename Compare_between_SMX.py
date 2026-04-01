@@ -78,16 +78,124 @@ def highlight_diff(df1, df2):
     
     return comparison_df
 
-# Function to find different rows
-def compare_rows(df1, df2):
+# Function to find and visualize textual differences
+def generate_diff(df1, df2):
     if df1 is None or df2 is None:
-        return None, None, None
+        return 0, 0, 0, ""
 
-    OuterJoinedDF = pd.merge(df1, df2, how="outer", indicator="Exist")
-    only_in_df1 = OuterJoinedDF.query("Exist == 'left_only'")
-    only_in_df2 = OuterJoinedDF.query("Exist == 'right_only'")
-    different_rows_df = OuterJoinedDF.query("Exist != 'both'")
-    return only_in_df1, only_in_df2, different_rows_df
+    # Ensure columns are ordered and aligned. We use union of columns.
+    columns = list(dict.fromkeys(list(df1.columns) + list(df2.columns)))
+    
+    # Fill missing columns
+    for col in columns:
+        if col not in df1.columns:
+            df1[col] = ""
+        if col not in df2.columns:
+            df2[col] = ""
+            
+    df1 = df1[columns].fillna("")
+    df2 = df2[columns].fillna("")
+            
+    # Convert rows to tuple of strings for difflib
+    rows1 = [tuple(str(val) for val in row) for row in df1.values]
+    rows2 = [tuple(str(val) for val in row) for row in df2.values]
+    
+    sm = difflib.SequenceMatcher(None, rows1, rows2)
+    
+    html = ['<div style="overflow-x: auto; max-height: 800px;"><table style="width:100%; border-collapse: collapse; text-align: left; font-family: sans-serif; font-size: 14px;">']
+    
+    html.append('<thead style="position: sticky; top: 0; z-index: 1;"><tr style="background-color: #f0f2f6; border-bottom: 2px solid #ccc;">')
+    html.append('<th style="padding: 8px; border: 1px solid #ccc; width: 40px; text-align: center;">Old #</th>')
+    html.append('<th style="padding: 8px; border: 1px solid #ccc; width: 40px; text-align: center;">New #</th>')
+    for col in columns:
+        html.append(f'<th style="padding: 8px; border: 1px solid #ccc;">{str(col)}</th>')
+    html.append('</tr></thead>')
+    
+    html.append('<tbody>')
+    
+    added = 0
+    removed = 0
+    modified = 0
+    
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == 'equal':
+            for idx in range(i2 - i1):
+                row_idx1 = i1 + idx
+                row_idx2 = j1 + idx
+                html.append('<tr style="border-bottom: 1px solid #eee;">')
+                html.append(f'<td style="padding: 8px; border: 1px solid #eee; text-align: center; color: #555;">{row_idx1 + 2}</td>')
+                html.append(f'<td style="padding: 8px; border: 1px solid #eee; text-align: center; color: #555;">{row_idx2 + 2}</td>')
+                for val in rows1[row_idx1]:
+                    html.append(f'<td style="padding: 8px; border: 1px solid #eee;">{val}</td>')
+                html.append('</tr>')
+                
+        elif tag == 'insert':
+            added += (j2 - j1)
+            for row_idx2 in range(j1, j2):
+                html.append('<tr style="background-color: #e6ffec; border-bottom: 1px solid #cce8d6;">')
+                html.append(f'<td style="padding: 8px; border: 1px solid #cce8d6; text-align: center;"></td>')
+                html.append(f'<td style="padding: 8px; border: 1px solid #cce8d6; text-align: center; color: #1a7f37; font-weight: bold;">{row_idx2 + 2}</td>')
+                for val in rows2[row_idx2]:
+                    html.append(f'<td style="padding: 8px; border: 1px solid #cce8d6; color: #1a7f37;">{val}</td>')
+                html.append('</tr>')
+                
+        elif tag == 'delete':
+            removed += (i2 - i1)
+            for row_idx1 in range(i1, i2):
+                html.append('<tr style="background-color: #ffebe9; border-bottom: 1px solid #fad3d0;">')
+                html.append(f'<td style="padding: 8px; border: 1px solid #fad3d0; text-align: center; color: #cf222e; font-weight: bold;">{row_idx1 + 2}</td>')
+                html.append(f'<td style="padding: 8px; border: 1px solid #fad3d0; text-align: center;"></td>')
+                for val in rows1[row_idx1]:
+                    html.append(f'<td style="padding: 8px; border: 1px solid #fad3d0; color: #cf222e;">{val}</td>')
+                html.append('</tr>')
+                
+        elif tag == 'replace':
+            len1 = i2 - i1
+            len2 = j2 - j1
+            min_len = min(len1, len2)
+            
+            modified += min_len
+            removed += max(0, len1 - min_len)
+            added += max(0, len2 - min_len)
+            
+            for idx in range(min_len):
+                row_idx1 = i1 + idx
+                row_idx2 = j1 + idx
+                html.append('<tr style="border-bottom: 1px solid #eee;">')
+                html.append(f'<td style="padding: 8px; border: 1px solid #eee; text-align: center; color: #cf222e;">{row_idx1 + 2}</td>')
+                html.append(f'<td style="padding: 8px; border: 1px solid #eee; text-align: center; color: #1a7f37;">{row_idx2 + 2}</td>')
+                
+                for c_idx, col in enumerate(columns):
+                    val1 = rows1[row_idx1][c_idx]
+                    val2 = rows2[row_idx2][c_idx]
+                    if val1 != val2:
+                        html.append(f'<td style="padding: 8px; border: 1px solid #eee;">'
+                                    f'<span style="background-color: #ffebe9; color: #cf222e; padding: 2px 4px; border-radius: 3px; margin-right: 4px; display: inline-block; margin-bottom: 2px;">{val1}</span>'
+                                    f'<span style="background-color: #e6ffec; color: #1a7f37; padding: 2px 4px; border-radius: 3px; display: inline-block;">{val2}</span>'
+                                    f'</td>')
+                    else:
+                        html.append(f'<td style="padding: 8px; border: 1px solid #eee;">{val1}</td>')
+                html.append('</tr>')
+                
+            if len1 > len2:
+                for row_idx1 in range(i1 + min_len, i2):
+                    html.append('<tr style="background-color: #ffebe9; border-bottom: 1px solid #fad3d0;">')
+                    html.append(f'<td style="padding: 8px; border: 1px solid #fad3d0; text-align: center; color: #cf222e; font-weight: bold;">{row_idx1 + 2}</td>')
+                    html.append(f'<td style="padding: 8px; border: 1px solid #fad3d0; text-align: center;"></td>')
+                    for val in rows1[row_idx1]:
+                        html.append(f'<td style="padding: 8px; border: 1px solid #fad3d0; color: #cf222e;">{val}</td>')
+                    html.append('</tr>')
+            elif len2 > len1:
+                for row_idx2 in range(j1 + min_len, j2):
+                    html.append('<tr style="background-color: #e6ffec; border-bottom: 1px solid #cce8d6;">')
+                    html.append(f'<td style="padding: 8px; border: 1px solid #cce8d6; text-align: center;"></td>')
+                    html.append(f'<td style="padding: 8px; border: 1px solid #cce8d6; text-align: center; color: #1a7f37; font-weight: bold;">{row_idx2 + 2}</td>')
+                    for val in rows2[row_idx2]:
+                        html.append(f'<td style="padding: 8px; border: 1px solid #cce8d6; color: #1a7f37;">{val}</td>')
+                    html.append('</tr>')
+                    
+    html.append('</tbody></table></div>')
+    return added, removed, modified, ''.join(html)
 
 # Function to compare full workbooks
 def compare_full_workbooks(wb1_sheets, wb2_sheets):
@@ -117,13 +225,13 @@ def compare_full_workbooks(wb1_sheets, wb2_sheets):
             df2 = wb2_sheets[sheet_name]
 
             if  len(df1.columns) > 0 and len(df2.columns) > 0:
-                only_in_df1, only_in_df2, different_rows = compare_rows(df1, df2)
+                added, removed, modified, _ = generate_diff(df1, df2)
                 
-                sheet_summary['Rows Only in WB1'] = len(only_in_df1) 
-                sheet_summary['Rows Only in WB2'] = len(only_in_df2) 
-                sheet_summary['Rows with Differences'] = len(different_rows) if different_rows is not None else 0
+                sheet_summary['Rows Only in WB1'] = removed 
+                sheet_summary['Rows Only in WB2'] = added 
+                sheet_summary['Rows with Differences'] = modified
                 
-                total_sheet_diffs = sheet_summary['Rows Only in WB1'] + sheet_summary['Rows Only in WB2'] + sheet_summary['Rows with Differences']
+                total_sheet_diffs = added + removed + modified
                 
                 if total_sheet_diffs == 0:
                     sheet_summary['Status'] = 'Identical'
@@ -177,20 +285,11 @@ if wb1_sheets and wb2_sheets:
             df1 = wb1_sheets[selected_sheet_for_detail]
             df2 = wb2_sheets[selected_sheet_for_detail]
                         
-            only_in_df1, only_in_df2, different_rows = compare_rows(df1, df2)
+            _, _, total_diffs, html_diff = generate_diff(df1, df2)
             
             # Show the differences
-            if not only_in_df1.empty:
-                st.write(f"Rows only in Workbook 1")
-                st.dataframe(only_in_df1)
-            
-            if not only_in_df2.empty:
-                st.write(f"Rows only in Workbook 2")
-                st.dataframe(only_in_df2)
-            
-            if not different_rows.empty:
-                st.write(f"**Rows with differences:** {len(different_rows)}")
-                st.dataframe(different_rows)
+            if html_diff:
+                st.markdown(html_diff, unsafe_allow_html=True)
             
 elif wb1_sheets or wb2_sheets:
     st.warning("Please upload both workbooks to compare")
@@ -200,3 +299,5 @@ else:
         # Show logout button
 with st.sidebar:
     authenticator.logout()
+
+    
